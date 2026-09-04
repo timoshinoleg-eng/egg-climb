@@ -6,6 +6,7 @@
 <script type="module">
   import { WorkerSimulationHost } from '../dist/host/worker-client.js'
 
+  const output = document.querySelector('#result')
   const GOLDEN_REPLAY_FINGERPRINT = '4393dd6d'
   const events = [
     { tick: 10, kind: 'move', moveX: 1, moveZ: 0 },
@@ -14,6 +15,16 @@
     { tick: 170, kind: 'jump', down: true },
     { tick: 175, kind: 'jump', down: false },
   ]
+
+  function exposeError(error) {
+    const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    output.textContent = 'error'
+    output.dataset.error = message
+    console.error('[worker-harness-error]', message)
+  }
+
+  window.addEventListener('error', event => exposeError(event.error ?? event.message))
+  window.addEventListener('unhandledrejection', event => exposeError(event.reason))
 
   function buildInputs() {
     let moveX = 0
@@ -78,7 +89,6 @@
     const queuedAdvancePromise = host.advance(Array.from({ length: 10 }, () => ({ moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false })))
     const [resetSnapshot, queuedFrame] = await Promise.all([resetPromise, queuedAdvancePromise])
 
-    const output = document.querySelector('#result')
     output.textContent = fingerprint
     output.dataset.tick = String(baselineFrame.current.tick)
     output.dataset.chunking = String(chunkedFingerprint === fingerprint && chunkedFrame.current.tick === baselineFrame.current.tick)
@@ -89,8 +99,10 @@
     output.dataset.doubleInit = String(doubleInitRejected)
     output.dataset.empty = String(emptyRejected)
     output.dataset.expected = GOLDEN_REPLAY_FINGERPRINT
+  } catch (error) {
+    exposeError(error)
   } finally {
-    await host.free()
+    await host.free().catch(error => exposeError(error))
   }
 </script>
 </body>

@@ -2,7 +2,13 @@ import { expect, test } from '@playwright/test'
 
 const GOLDEN_REPLAY_FINGERPRINT = '4393dd6d'
 
+function attachDiagnostics(page, browserName) {
+  page.on('console', message => console.log(`[browser-console:${browserName}] ${message.type()} ${message.text()}`))
+  page.on('pageerror', error => console.error(`[browser-pageerror:${browserName}] ${error.name}: ${error.message}`))
+}
+
 test('golden replay is identical in this browser engine', async ({ page, browserName }) => {
+  attachDiagnostics(page, browserName)
   await page.goto('/debug/replay-harness.html')
   const result = page.locator('#result')
   await expect(result).toHaveText(GOLDEN_REPLAY_FINGERPRINT)
@@ -12,8 +18,12 @@ test('golden replay is identical in this browser engine', async ({ page, browser
 })
 
 test('simulation worker proves runtime identity, golden equivalence, chunking and queue ordering', async ({ page, browserName }) => {
+  attachDiagnostics(page, browserName)
   await page.goto('/debug/worker-harness.html')
   const result = page.locator('#result')
+  await expect(result).not.toHaveText('pending')
+  const error = await result.getAttribute('data-error')
+  if (error) throw new Error(`Worker harness failed: ${error}`)
   await expect(result).toHaveText(GOLDEN_REPLAY_FINGERPRINT)
   await expect(result).toHaveAttribute('data-tick', '240')
   await expect(result).toHaveAttribute('data-chunking', 'true')
