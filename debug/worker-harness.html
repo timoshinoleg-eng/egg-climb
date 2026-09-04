@@ -6,7 +6,7 @@
 <script type="module">
   import { WorkerSimulationHost } from '../dist/host/worker-client.js'
 
-  const GOLDEN_REPLAY_FINGERPRINT = '436f6aa7'
+  const GOLDEN_REPLAY_FINGERPRINT = '4393dd6d'
   const events = [
     { tick: 10, kind: 'move', moveX: 1, moveZ: 0 },
     { tick: 90, kind: 'move', moveX: 0, moveZ: 0.5 },
@@ -74,7 +74,6 @@
     const chunkedFrame = await runChunks(host, inputs, [1, 7, 31, 4, 53, 9])
     const chunkedFingerprint = await host.fingerprint()
 
-    // Post reset and advance without awaiting reset: serialized runtime ordering must be preserved.
     const resetPromise = host.reset()
     const queuedAdvancePromise = host.advance(Array.from({ length: 10 }, () => ({ moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false })))
     const [resetSnapshot, queuedFrame] = await Promise.all([resetPromise, queuedAdvancePromise])

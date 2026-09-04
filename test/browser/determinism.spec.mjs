@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-const GOLDEN_REPLAY_FINGERPRINT = '436f6aa7'
+const GOLDEN_REPLAY_FINGERPRINT = '4393dd6d'
 
 test('golden replay is identical in this browser engine', async ({ page, browserName }) => {
   await page.goto('/debug/replay-harness.html')

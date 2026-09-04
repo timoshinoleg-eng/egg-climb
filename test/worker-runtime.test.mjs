@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { SimulationWorkerRuntime, WORKER_PROTOCOL_VERSION } from '../dist/host/index.js'
+import { SimulationWorkerRuntime } from '../dist/host/index.js'
+import { WORKER_PROTOCOL_VERSION } from '../dist/sim/index.js'
 import { initPhysics, RAPIER } from '../dist/sim/rapier.js'
 
 const NEUTRAL = Object.freeze({ moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false })
