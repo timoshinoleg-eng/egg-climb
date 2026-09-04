@@ -13,6 +13,7 @@ test('same replay produces byte-identical physics fingerprint', async () => {
     { tick: 175, seq: 0, kind: 'jump', down: false },
   ])
   const a = await runReplay(input); const b = await runReplay(input)
+  console.log(`GOLDEN_REPLAY_FINGERPRINT=${a.fingerprint}`)
   assert.equal(a.fingerprint, b.fingerprint)
   assert.deepEqual(a.snapshot, b.snapshot)
   assert.equal(a.snapshot.tick, 240)
