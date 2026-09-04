@@ -20,9 +20,9 @@ test('render interpolation is clamped and uses the shortest quaternion represent
 
 test('debug renderer references pinned local module entries, not a CDN', async () => {
   await access('node_modules/three/build/three.module.js')
-  await access('node_modules/@dimforge/rapier3d-deterministic-compat/rapier.mjs')
+  await access('node_modules/@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs')
   const html = await readFile('debug/index.html', 'utf8')
   assert.match(html, /\/node_modules\/three\/build\/three\.module\.js/)
-  assert.match(html, /rapier3d-deterministic-compat\/rapier\.mjs/)
+  assert.match(html, /rapier3d-deterministic-compat\/dist\/rapier\.mjs/)
   assert.doesNotMatch(html, /https?:\/\//)
 })
