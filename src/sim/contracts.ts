@@ -1,4 +1,17 @@
-import { PHYSICS_HZ, PHYSICS_PRESET_ID, RAPIER_PACKAGE, RAPIER_VERSION, REPLAY_PROTOCOL_VERSION, SIMULATION_VERSION } from './config.js'
+import {
+  FOUNDATION_ASSIST_PRESET_ID,
+  FOUNDATION_CONTROL_MODE,
+  FOUNDATION_DIMENSION_MODE,
+  FOUNDATION_LEVEL_ID,
+  FOUNDATION_LEVEL_VERSION,
+  FOUNDATION_SEED,
+  PHYSICS_HZ,
+  PHYSICS_PRESET_ID,
+  RAPIER_PACKAGE,
+  RAPIER_VERSION,
+  REPLAY_PROTOCOL_VERSION,
+  SIMULATION_VERSION,
+} from './config.js'
 
 export type DimensionMode = '2.5d' | '3d'
 export type ControlMode = 'tap' | 'hold-release'
@@ -49,11 +62,11 @@ export function defaultReplayHeader(): ReplayHeader {
     rapierVersion: RAPIER_VERSION,
     physicsPresetId: PHYSICS_PRESET_ID,
     tickRate: PHYSICS_HZ,
-    levelId: 'foundation-ribbon-v1',
-    levelVersion: 1,
-    seed: 0,
-    dimensionMode: '3d',
-    controlMode: 'tap',
-    assistPresetId: 'none',
+    levelId: FOUNDATION_LEVEL_ID,
+    levelVersion: FOUNDATION_LEVEL_VERSION,
+    seed: FOUNDATION_SEED,
+    dimensionMode: FOUNDATION_DIMENSION_MODE,
+    controlMode: FOUNDATION_CONTROL_MODE,
+    assistPresetId: FOUNDATION_ASSIST_PRESET_ID,
   }
 }
