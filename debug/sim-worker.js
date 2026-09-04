@@ -1,10 +1,12 @@
 import RAPIER from '/node_modules/@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs'
+import { assertTickInputs } from '../dist/host/validation.js'
 import { createSimulationWithRapier } from '../dist/sim/simulation-core.js'
 
 let initializedPhysics = false
 let simulation
 let previous
 let current
+let requestQueue = Promise.resolve()
 
 async function ensurePhysics() {
   if (!initializedPhysics) {
@@ -13,7 +15,7 @@ async function ensurePhysics() {
   }
 }
 
-async function resetSimulation() {
+async function createFreshSimulation() {
   await ensurePhysics()
   simulation?.free()
   simulation = createSimulationWithRapier(RAPIER)
@@ -22,34 +24,34 @@ async function resetSimulation() {
   return current
 }
 
-function validateAdvance(steps, input) {
-  if (!Number.isInteger(steps) || steps < 0 || steps > 120) throw new Error('Invalid simulation advance step count')
-  if (!input || !Number.isFinite(input.moveX) || !Number.isFinite(input.moveZ)) throw new Error('Invalid simulation input')
-  if (typeof input.jumpDown !== 'boolean' || typeof input.jumpUp !== 'boolean') throw new Error('Invalid simulation input edges')
-}
-
-self.addEventListener('message', async (event) => {
-  const request = event.data
+async function handleRequest(request) {
   const id = Number.isInteger(request?.id) ? request.id : -1
   try {
     if (request?.type === 'init') {
-      const snapshot = await resetSimulation()
+      if (simulation) throw new Error('Simulation worker is already initialized')
+      const snapshot = await createFreshSimulation()
       self.postMessage({ id, type: 'initialized', snapshot })
       return
     }
     if (request?.type === 'advance') {
       if (!simulation) throw new Error('Simulation worker is not initialized')
-      validateAdvance(request.steps, request.input)
-      for (let index = 0; index < request.steps; index += 1) {
+      assertTickInputs(request.inputs)
+      for (const input of request.inputs) {
         previous = current
-        simulation.step(request.input)
+        simulation.step(input)
         current = simulation.snapshot()
       }
-      self.postMessage({ id, type: 'advanced', frame: { previous, current, stepped: request.steps } })
+      self.postMessage({ id, type: 'advanced', frame: { previous, current, stepped: request.inputs.length } })
+      return
+    }
+    if (request?.type === 'fingerprint') {
+      if (!simulation) throw new Error('Simulation worker is not initialized')
+      self.postMessage({ id, type: 'fingerprint', fingerprint: simulation.fingerprint() })
       return
     }
     if (request?.type === 'reset') {
-      const snapshot = await resetSimulation()
+      if (!simulation) throw new Error('Simulation worker is not initialized')
+      const snapshot = await createFreshSimulation()
       self.postMessage({ id, type: 'reset', snapshot })
       return
     }
@@ -65,4 +67,8 @@ self.addEventListener('message', async (event) => {
   } catch (error) {
     self.postMessage({ id, type: 'error', message: error instanceof Error ? error.message : String(error) })
   }
+}
+
+self.addEventListener('message', (event) => {
+  requestQueue = requestQueue.then(() => handleRequest(event.data))
 })

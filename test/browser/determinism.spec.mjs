@@ -11,8 +11,11 @@ test('golden replay is identical in this browser engine', async ({ page, browser
   console.log(`[browser-fingerprint] ${browserName} ${GOLDEN_REPLAY_FINGERPRINT} ${userAgent ?? ''}`)
 })
 
-test('simulation worker advances the same headless core', async ({ page, browserName }) => {
+test('simulation worker produces the golden fingerprint and preserves request order', async ({ page, browserName }) => {
   await page.goto('/debug/worker-harness.html')
-  await expect(page.locator('#result')).toHaveText('10')
-  console.log(`[worker-smoke] ${browserName} tick=10`)
+  const result = page.locator('#result')
+  await expect(result).toHaveText(GOLDEN_REPLAY_FINGERPRINT)
+  await expect(result).toHaveAttribute('data-tick', '240')
+  await expect(result).toHaveAttribute('data-queue', 'true')
+  console.log(`[worker-fingerprint] ${browserName} ${GOLDEN_REPLAY_FINGERPRINT} tick=240 queue=true`)
 })

@@ -5,11 +5,62 @@
 <output id="result">pending</output>
 <script type="module">
   import { WorkerSimulationHost } from '../dist/host/worker-client.js'
+
+  const GOLDEN_REPLAY_FINGERPRINT = '436f6aa7'
+  const events = [
+    { tick: 10, kind: 'move', moveX: 1, moveZ: 0 },
+    { tick: 90, kind: 'move', moveX: 0, moveZ: 0.5 },
+    { tick: 150, kind: 'move', moveX: 0, moveZ: 0 },
+    { tick: 170, kind: 'jump', down: true },
+    { tick: 175, kind: 'jump', down: false },
+  ]
+
+  function buildInputs() {
+    let moveX = 0
+    let moveZ = 0
+    let jumpHeld = false
+    let cursor = 0
+    const inputs = []
+    for (let tick = 0; tick < 240; tick += 1) {
+      let jumpDown = false
+      let jumpUp = false
+      while (cursor < events.length && events[cursor].tick === tick) {
+        const event = events[cursor]
+        if (event.kind === 'move') {
+          moveX = event.moveX
+          moveZ = event.moveZ
+        } else if (event.down && !jumpHeld) {
+          jumpHeld = true
+          jumpDown = true
+        } else if (!event.down && jumpHeld) {
+          jumpHeld = false
+          jumpUp = true
+        }
+        cursor += 1
+      }
+      inputs.push({ moveX, moveZ, jumpDown, jumpUp })
+    }
+    return inputs
+  }
+
   const host = new WorkerSimulationHost(new URL('./sim-worker.js', import.meta.url))
   try {
     await host.init()
-    const frame = await host.advance(10, { moveX: 0.5, moveZ: 0, jumpDown: false, jumpUp: false })
-    document.querySelector('#result').textContent = String(frame.current.tick)
+    const inputs = buildInputs()
+    await host.advance(inputs.slice(0, 120))
+    const finalFrame = await host.advance(inputs.slice(120))
+    const fingerprint = await host.fingerprint()
+
+    // Post reset and advance without awaiting the reset first: serialized worker ordering must still be preserved.
+    const resetPromise = host.reset()
+    const queuedAdvancePromise = host.advance(Array.from({ length: 10 }, () => ({ moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false })))
+    const [resetSnapshot, queuedFrame] = await Promise.all([resetPromise, queuedAdvancePromise])
+
+    const output = document.querySelector('#result')
+    output.textContent = fingerprint
+    output.dataset.tick = String(finalFrame.current.tick)
+    output.dataset.queue = String(resetSnapshot.tick === 0 && queuedFrame.current.tick === 10)
+    output.dataset.expected = GOLDEN_REPLAY_FINGERPRINT
   } finally {
     await host.free()
   }

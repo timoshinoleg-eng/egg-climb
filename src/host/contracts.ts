@@ -8,7 +8,9 @@ export interface SimulationFrame {
 
 export interface SimulationHost {
   init(): Promise<SimulationSnapshot>
-  advance(steps: number, input: TickInput): Promise<SimulationFrame>
+  /** Advance exactly one authoritative physics tick per input entry, in array order. */
+  advance(inputs: readonly TickInput[]): Promise<SimulationFrame>
+  fingerprint(): Promise<string>
   reset(): Promise<SimulationSnapshot>
   free(): Promise<void>
 }

@@ -95,8 +95,9 @@ function frame(now) {
   const dueSteps = Math.min(Math.floor(accumulator / PHYSICS_DT), 8)
   if (!advancePending && dueSteps > 0) {
     accumulator -= dueSteps * PHYSICS_DT
+    const inputs = Array.from({ length: dueSteps }, () => sampleInput())
     advancePending = true
-    simulation.advance(dueSteps, sampleInput()).then((result) => {
+    simulation.advance(inputs).then((result) => {
       previous = result.previous
       current = result.current
       lastStepped = result.stepped
