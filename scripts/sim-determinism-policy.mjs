@@ -22,6 +22,12 @@ const BANNED_GLOBALS = new Set([
   'indexedDB',
   'WebSocket',
   'globalThis',
+  'self',
+  'Reflect',
+  'Proxy',
+  'WebAssembly',
+  'Atomics',
+  'SharedArrayBuffer',
   'process',
   'require',
   'eval',
@@ -44,6 +50,12 @@ function relativeImportStaysInsideSim(fileName, specifier) {
   return target === 'src/sim' || target.startsWith('src/sim/')
 }
 
+function relativeImportStaysInsideAuthoritativeHost(fileName, specifier) {
+  const from = path.posix.dirname(normalizedFileName(fileName))
+  const target = path.posix.normalize(path.posix.join(from, specifier))
+  return target === 'src/host' || target.startsWith('src/host/') || target === 'src/sim' || target.startsWith('src/sim/')
+}
+
 function isPropertyNameIdentifier(node) {
   const parent = node.parent
   return (
@@ -55,17 +67,17 @@ function isPropertyNameIdentifier(node) {
   )
 }
 
-function checkModuleSpecifier(node, moduleSpecifier, fileName, report) {
+function checkModuleSpecifier(moduleSpecifier, fileName, report, allowedRelative, allowRapier) {
   const specifier = moduleSpecifier.text
   if (specifier.startsWith('.')) {
-    if (!relativeImportStaysInsideSim(fileName, specifier)) report(moduleSpecifier, `relative import escapes authoritative src/sim boundary: ${specifier}`)
+    if (!allowedRelative(fileName, specifier)) report(moduleSpecifier, `relative import escapes authoritative boundary: ${specifier}`)
     return
   }
-  const isRapierImport = specifier === ALLOWED_EXTERNAL_IMPORT && normalizedFileName(fileName).endsWith('/sim/rapier.ts')
-  if (!isRapierImport) report(moduleSpecifier, `external import is not allowed in authoritative sim: ${specifier}`)
+  const isRapierImport = allowRapier && specifier === ALLOWED_EXTERNAL_IMPORT && normalizedFileName(fileName).endsWith('/sim/rapier.ts')
+  if (!isRapierImport) report(moduleSpecifier, `external import is not allowed in authoritative code: ${specifier}`)
 }
 
-export function findSimDeterminismViolations(sourceText, fileName = 'source.ts') {
+function collectViolations(sourceText, fileName, options) {
   const sourceFile = ts.createSourceFile(fileName, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const violations = []
 
@@ -75,30 +87,31 @@ export function findSimDeterminismViolations(sourceText, fileName = 'source.ts')
 
   function visit(node) {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      checkModuleSpecifier(node, node.moduleSpecifier, fileName, report)
+      checkModuleSpecifier(node.moduleSpecifier, fileName, report, options.allowedRelative, options.allowRapier)
     }
     if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-      checkModuleSpecifier(node, node.moduleSpecifier, fileName, report)
+      checkModuleSpecifier(node.moduleSpecifier, fileName, report, options.allowedRelative, options.allowRapier)
     }
-    if (ts.isImportEqualsDeclaration(node)) report(node, 'import-equals is not allowed in authoritative sim')
-    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) report(node, 'dynamic import() is not allowed in authoritative sim')
+    if (ts.isImportEqualsDeclaration(node)) report(node, 'import-equals is not allowed in authoritative code')
+    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) report(node, 'dynamic import() is not allowed in authoritative code')
+    if (ts.isMetaProperty(node) && node.keywordToken === ts.SyntaxKind.ImportKeyword) report(node, 'import.meta is not allowed in authoritative code')
 
-    if (ts.isBinaryExpression(node)) {
+    if (options.strictMath && ts.isBinaryExpression(node)) {
       if (node.operatorToken.kind === ts.SyntaxKind.AsteriskAsteriskToken) report(node.operatorToken, 'exponentiation operator ** is not allowed in authoritative sim')
       if (node.operatorToken.kind === ts.SyntaxKind.PercentToken) report(node.operatorToken, 'remainder operator % is not allowed in authoritative sim')
     }
 
-    if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'Math') {
+    if (options.strictMath && ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'Math') {
       if (!ALLOWED_MATH_MEMBERS.has(node.name.text)) report(node, `Math.${node.name.text} is not on the deterministic allowlist`)
     }
     if (ts.isIdentifier(node) && node.text === 'Math') {
       const parent = node.parent
       const directPropertyAccess = ts.isPropertyAccessExpression(parent) && parent.expression === node
-      if (!directPropertyAccess) report(node, 'Math may only be used through a direct allowlisted Math.member access')
+      if (!directPropertyAccess || !options.strictMath) report(node, options.strictMath ? 'Math may only be used through a direct allowlisted Math.member access' : 'Math is not allowed in authoritative worker runtime')
     }
 
     if (ts.isIdentifier(node) && BANNED_GLOBALS.has(node.text) && !isPropertyNameIdentifier(node)) {
-      report(node, `ambient/environmental global is not allowed in authoritative sim: ${node.text}`)
+      report(node, `ambient/environmental global is not allowed in authoritative code: ${node.text}`)
     }
 
     ts.forEachChild(node, visit)
@@ -106,6 +119,22 @@ export function findSimDeterminismViolations(sourceText, fileName = 'source.ts')
 
   visit(sourceFile)
   return violations
+}
+
+export function findSimDeterminismViolations(sourceText, fileName = 'source.ts') {
+  return collectViolations(sourceText, fileName, {
+    allowedRelative: relativeImportStaysInsideSim,
+    allowRapier: true,
+    strictMath: true,
+  })
+}
+
+export function findAuthoritativeHostViolations(sourceText, fileName = 'src/host/worker-runtime.ts') {
+  return collectViolations(sourceText, fileName, {
+    allowedRelative: relativeImportStaysInsideAuthoritativeHost,
+    allowRapier: false,
+    strictMath: false,
+  })
 }
 
 export const SIM_DETERMINISM_POLICY = Object.freeze({

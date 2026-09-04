@@ -11,6 +11,7 @@ export function assertTickInput(input: TickInput): void {
 
 export function assertTickInputs(inputs: readonly TickInput[]): void {
   if (!Array.isArray(inputs)) throw new Error('Simulation advance requires an input array')
+  if (inputs.length === 0) throw new Error('Simulation advance requires at least one tick input')
   if (inputs.length > MAX_ADVANCE_TICKS) throw new Error('Simulation advance input batch is too large')
   for (const input of inputs) assertTickInput(input)
 }

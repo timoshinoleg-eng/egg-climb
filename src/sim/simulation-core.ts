@@ -1,6 +1,6 @@
 import { FOUNDATION_TORQUE_IMPULSE, PHYSICS_DT } from './config.js'
 import type { SimulationSnapshot, TickInput } from './contracts.js'
-import { fingerprintBytes } from './hash.js'
+import { fingerprintSimulationState } from './fingerprint.js'
 import { FOUNDATION_LEVEL } from './level.js'
 import type { RapierApi } from './rapier.js'
 
@@ -16,6 +16,11 @@ export interface Simulation {
 function clampAxis(value: number): number {
   if (!Number.isFinite(value)) return 0
   return Math.max(-1, Math.min(1, value))
+}
+
+function authoritativeStateBytes(): Uint8Array {
+  // Reserved canonical slot for gameplay state that will live outside Rapier in Physics Lab.
+  return new Uint8Array(0)
 }
 
 export function createSimulationWithRapier(RAPIER: RapierApi): Simulation {
@@ -58,7 +63,13 @@ export function createSimulationWithRapier(RAPIER: RapierApi): Simulation {
       }
     },
     takePhysicsSnapshot() { return world.takeSnapshot() },
-    fingerprint() { return fingerprintBytes(world.takeSnapshot()) },
+    fingerprint() {
+      return fingerprintSimulationState({
+        tick,
+        authoritativeState: authoritativeStateBytes(),
+        physicsSnapshot: world.takeSnapshot(),
+      })
+    },
     free() { world.free() },
   }
 }

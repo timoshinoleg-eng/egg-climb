@@ -1,4 +1,5 @@
 import {
+  FINGERPRINT_VERSION,
   FOUNDATION_ASSIST_PRESET_ID,
   FOUNDATION_CONTROL_MODE,
   FOUNDATION_DIMENSION_MODE,
@@ -26,6 +27,7 @@ function assertReplay(replay: Replay): void {
   if (header.protocolVersion !== REPLAY_PROTOCOL_VERSION) throw new Error('Unsupported replay protocol')
   if (header.simulationVersion !== SIMULATION_VERSION) throw new Error('Simulation version mismatch')
   if (header.rapierPackage !== RAPIER_PACKAGE || header.rapierVersion !== RAPIER_VERSION) throw new Error('Rapier version mismatch')
+  if (header.fingerprintVersion !== FINGERPRINT_VERSION) throw new Error('Fingerprint version mismatch')
   if (header.physicsPresetId !== PHYSICS_PRESET_ID) throw new Error('Physics preset mismatch')
   if (header.tickRate !== PHYSICS_HZ) throw new Error('Tick rate mismatch')
   if (header.levelId !== FOUNDATION_LEVEL_ID || header.levelVersion !== FOUNDATION_LEVEL_VERSION) throw new Error('Level version mismatch')
