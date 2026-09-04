@@ -15,7 +15,11 @@ import {
 import type { Replay, ReplayInputEvent, SimulationSnapshot, TickInput } from './contracts.js'
 import { createSimulation } from './simulation.js'
 
-export interface ReplayResult { readonly snapshot: SimulationSnapshot; readonly fingerprint: string }
+export interface ReplayResult {
+  readonly snapshot: SimulationSnapshot
+  readonly fingerprint: string
+  readonly clientFingerprintMatches: boolean | null
+}
 
 function assertReplay(replay: Replay): void {
   const { header } = replay
@@ -31,6 +35,7 @@ function assertReplay(replay: Replay): void {
   if (header.assistPresetId !== FOUNDATION_ASSIST_PRESET_ID) throw new Error('Assist preset mismatch')
   if (!Number.isInteger(replay.finishTick) || replay.finishTick < 0) throw new Error('Invalid finish tick')
   if (!Array.isArray(replay.inputEvents)) throw new Error('Invalid input event list')
+  if (replay.clientFingerprint !== undefined && !/^[0-9a-f]{8}$/.test(replay.clientFingerprint)) throw new Error('Invalid client fingerprint')
 
   let currentTick = -1
   let expectedSeq = 0
@@ -75,7 +80,12 @@ export async function runReplay(replay: Replay): Promise<ReplayResult> {
       const input: TickInput = { moveX: state.moveX, moveZ: state.moveZ, jumpDown: edges.jumpDown, jumpUp: edges.jumpUp }
       simulation.step(input)
     }
-    return { snapshot: simulation.snapshot(), fingerprint: simulation.fingerprint() }
+    const fingerprint = simulation.fingerprint()
+    return {
+      snapshot: simulation.snapshot(),
+      fingerprint,
+      clientFingerprintMatches: replay.clientFingerprint === undefined ? null : replay.clientFingerprint === fingerprint,
+    }
   } finally {
     simulation.free()
   }

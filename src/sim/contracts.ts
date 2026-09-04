@@ -44,7 +44,13 @@ export interface ReplayHeader {
   readonly assistPresetId: string
 }
 
-export interface Replay { readonly header: ReplayHeader; readonly inputEvents: readonly ReplayInputEvent[]; readonly finishTick: number }
+export interface Replay {
+  readonly header: ReplayHeader
+  readonly inputEvents: readonly ReplayInputEvent[]
+  readonly finishTick: number
+  /** Client-computed final world fingerprint. A mismatch is telemetry until server validation policy says otherwise. */
+  readonly clientFingerprint?: string
+}
 
 export interface SimulationSnapshot {
   readonly tick: number

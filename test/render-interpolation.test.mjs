@@ -18,11 +18,14 @@ test('render interpolation is clamped and uses the shortest quaternion represent
   assert.deepEqual(interpolateSnapshots(a, b, 9).position, b.position)
 })
 
-test('debug renderer references pinned local module entries, not a CDN', async () => {
+test('debug renderer and worker reference pinned local modules, not CDNs', async () => {
   await access('node_modules/three/build/three.module.js')
   await access('node_modules/@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs')
   const html = await readFile('debug/index.html', 'utf8')
+  const worker = await readFile('debug/sim-worker.js', 'utf8')
+  const replayHarness = await readFile('debug/replay-harness.html', 'utf8')
   assert.match(html, /\/node_modules\/three\/build\/three\.module\.js/)
-  assert.match(html, /rapier3d-deterministic-compat\/dist\/rapier\.mjs/)
-  assert.doesNotMatch(html, /https?:\/\//)
+  assert.match(worker, /\/node_modules\/@dimforge\/rapier3d-deterministic-compat\/dist\/rapier\.mjs/)
+  assert.match(replayHarness, /rapier3d-deterministic-compat\/dist\/rapier\.mjs/)
+  assert.doesNotMatch(`${html}\n${worker}\n${replayHarness}`, /https?:\/\//)
 })

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Worker determinism harness</title></head>
+<body>
+<output id="result">pending</output>
+<script type="module">
+  import { WorkerSimulationHost } from '../dist/host/worker-client.js'
+  const host = new WorkerSimulationHost(new URL('./sim-worker.js', import.meta.url))
+  try {
+    await host.init()
+    const frame = await host.advance(10, { moveX: 0.5, moveZ: 0, jumpDown: false, jumpUp: false })
+    document.querySelector('#result').textContent = String(frame.current.tick)
+  } finally {
+    await host.free()
+  }
+</script>
+</body>
+</html>

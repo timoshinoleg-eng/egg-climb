@@ -1,5 +1,8 @@
 import * as THREE from 'three'
-import { FOUNDATION_LEVEL, NEUTRAL_INPUT, PHYSICS_DT, createSimulation } from '../dist/sim/index.js'
+import { PHYSICS_DT } from '../dist/sim/config.js'
+import { NEUTRAL_INPUT } from '../dist/sim/contracts.js'
+import { FOUNDATION_LEVEL } from '../dist/sim/level.js'
+import { WorkerSimulationHost } from '../dist/host/worker-client.js'
 import { interpolateSnapshots } from '../dist/render/interpolate.js'
 
 const canvas = document.querySelector('#viewport')
@@ -74,28 +77,38 @@ function resize() {
 window.addEventListener('resize', resize)
 resize()
 
-const simulation = await createSimulation()
-let previous = simulation.snapshot()
+const simulation = new WorkerSimulationHost(new URL('./sim-worker.js', import.meta.url))
+let previous = await simulation.init()
 let current = previous
 let accumulator = 0
 let lastTime = performance.now()
 let telemetryTimer = 0
-status.textContent = 'running — render is non-authoritative'
+let advancePending = false
+let lastStepped = 0
+status.textContent = 'running — physics worker is authoritative'
 
 function frame(now) {
   const frameDelta = Math.min(Math.max((now - lastTime) / 1000, 0), 0.1)
   lastTime = now
   accumulator += frameDelta
-  let steps = 0
-  while (accumulator >= PHYSICS_DT && steps < 8) {
-    previous = current
-    simulation.step(sampleInput())
-    current = simulation.snapshot()
-    accumulator -= PHYSICS_DT
-    steps += 1
+
+  const dueSteps = Math.min(Math.floor(accumulator / PHYSICS_DT), 8)
+  if (!advancePending && dueSteps > 0) {
+    accumulator -= dueSteps * PHYSICS_DT
+    advancePending = true
+    simulation.advance(dueSteps, sampleInput()).then((result) => {
+      previous = result.previous
+      current = result.current
+      lastStepped = result.stepped
+    }).catch((error) => {
+      status.textContent = `worker error: ${error instanceof Error ? error.message : String(error)}`
+    }).finally(() => {
+      advancePending = false
+    })
   }
 
-  const transform = interpolateSnapshots(previous, current, accumulator / PHYSICS_DT)
+  const alpha = Math.min(Math.max(accumulator / PHYSICS_DT, 0), 1)
+  const transform = interpolateSnapshots(previous, current, alpha)
   bodyGroup.position.set(transform.position.x, transform.position.y, transform.position.z)
   bodyGroup.quaternion.set(transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w)
 
@@ -107,7 +120,7 @@ function frame(now) {
   telemetryTimer += frameDelta
   if (telemetryTimer >= 0.2) {
     telemetryTimer = 0
-    telemetry.textContent = `tick ${current.tick} · α ${(accumulator / PHYSICS_DT).toFixed(2)} · steps ${steps} · pos ${current.position.x.toFixed(2)}, ${current.position.y.toFixed(2)}, ${current.position.z.toFixed(2)}`
+    telemetry.textContent = `tick ${current.tick} · α ${alpha.toFixed(2)} · worker steps ${lastStepped} · pos ${current.position.x.toFixed(2)}, ${current.position.y.toFixed(2)}, ${current.position.z.toFixed(2)}`
   }
 
   renderer.render(scene, camera)
@@ -115,4 +128,4 @@ function frame(now) {
 }
 requestAnimationFrame(frame)
 
-window.addEventListener('pagehide', () => simulation.free(), { once: true })
+window.addEventListener('pagehide', () => { void simulation.free() }, { once: true })
