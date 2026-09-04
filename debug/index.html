@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Egg Climb — Simulation Debug</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/node_modules/three/build/three.module.js",
+      "@dimforge/rapier3d-deterministic-compat": "/node_modules/@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="viewport" aria-label="Egg Climb physics debug viewport"></canvas>
+  <aside id="hud">
+    <strong>SIM DEBUG</strong>
+    <span id="status">initializing…</span>
+    <span id="telemetry"></span>
+    <span>WASD / arrows: torque input</span>
+    <span>Sphere is the temporary PR-A physics fixture.</span>
+  </aside>
+  <div id="unsupported" hidden>WebGL2 is required for the debug renderer.</div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
