@@ -28,15 +28,11 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
-      # Bootstrap only for the first branch run; replaced by npm ci once the regenerated lockfile is committed.
-      - run: npm install --ignore-scripts
+      - run: npm ci --ignore-scripts
       - name: Verify runner architecture
         env:
           EXPECTED_RUNTIME: ${{ matrix.expected_runtime }}
         run: node -e "const actual=process.platform+':'+process.arch; console.log('[runtime] '+actual); if(actual!==process.env.EXPECTED_RUNTIME){console.error('expected '+process.env.EXPECTED_RUNTIME); process.exit(1)}"
-      - name: Emit regenerated lockfile for bootstrap
-        if: matrix.os == 'ubuntu-latest'
-        run: node -e "const fs=require('fs'); console.log('LOCKFILE_BASE64='+Buffer.from(fs.readFileSync('package-lock.json')).toString('base64'))"
       - run: npm run typecheck
       - run: npm test
 
@@ -49,6 +45,6 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
-      - run: npm install --ignore-scripts
+      - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:browser
