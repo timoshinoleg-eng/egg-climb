@@ -7,10 +7,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test test/*.test.mjs"
+    "test": "npm run build && node --test test/*.test.mjs",
+    "debug:serve": "npm run build && node scripts/serve-debug.mjs"
   },
   "dependencies": {
-    "@dimforge/rapier3d-deterministic-compat": "0.20.0"
+    "@dimforge/rapier3d-deterministic-compat": "0.20.0",
+    "three": "0.185.1"
   },
   "devDependencies": {
     "typescript": "5.9.3"
