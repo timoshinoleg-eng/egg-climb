@@ -43,23 +43,52 @@
     return inputs
   }
 
+  async function runChunks(host, inputs, chunkSizes) {
+    let cursor = 0
+    let chunkCursor = 0
+    let finalFrame
+    while (cursor < inputs.length) {
+      const requested = chunkSizes[chunkCursor % chunkSizes.length]
+      const end = Math.min(inputs.length, cursor + requested)
+      finalFrame = await host.advance(inputs.slice(cursor, end))
+      cursor = end
+      chunkCursor += 1
+    }
+    return finalFrame
+  }
+
   const host = new WorkerSimulationHost(new URL('./sim-worker.js', import.meta.url))
   try {
     await host.init()
+    const info = host.runtimeInfo
+    let doubleInitRejected = false
+    try { await host.init() } catch { doubleInitRejected = true }
+    let emptyRejected = false
+    try { await host.advance([]) } catch { emptyRejected = true }
+
     const inputs = buildInputs()
-    await host.advance(inputs.slice(0, 120))
-    const finalFrame = await host.advance(inputs.slice(120))
+    const baselineFrame = await runChunks(host, inputs, [120])
     const fingerprint = await host.fingerprint()
 
-    // Post reset and advance without awaiting the reset first: serialized worker ordering must still be preserved.
+    await host.reset()
+    const chunkedFrame = await runChunks(host, inputs, [1, 7, 31, 4, 53, 9])
+    const chunkedFingerprint = await host.fingerprint()
+
+    // Post reset and advance without awaiting reset: serialized runtime ordering must be preserved.
     const resetPromise = host.reset()
     const queuedAdvancePromise = host.advance(Array.from({ length: 10 }, () => ({ moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false })))
     const [resetSnapshot, queuedFrame] = await Promise.all([resetPromise, queuedAdvancePromise])
 
     const output = document.querySelector('#result')
     output.textContent = fingerprint
-    output.dataset.tick = String(finalFrame.current.tick)
+    output.dataset.tick = String(baselineFrame.current.tick)
+    output.dataset.chunking = String(chunkedFingerprint === fingerprint && chunkedFrame.current.tick === baselineFrame.current.tick)
     output.dataset.queue = String(resetSnapshot.tick === 0 && queuedFrame.current.tick === 10)
+    output.dataset.runtime = info?.runtime ?? 'missing'
+    output.dataset.rapierVersion = info?.rapierVersion ?? 'missing'
+    output.dataset.protocolVersion = String(info?.workerProtocolVersion ?? 'missing')
+    output.dataset.doubleInit = String(doubleInitRejected)
+    output.dataset.empty = String(emptyRejected)
     output.dataset.expected = GOLDEN_REPLAY_FINGERPRINT
   } finally {
     await host.free()

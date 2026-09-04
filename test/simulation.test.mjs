@@ -21,6 +21,7 @@ const GOLDEN_EVENTS = [
 test('golden replay is byte-identical and stable', async () => {
   const input = replay(GOLDEN_EVENTS)
   const a = await runReplay(input); const b = await runReplay(input)
+  console.log(`[golden-fingerprint] ${a.fingerprint}`)
   assert.equal(a.fingerprint, GOLDEN_REPLAY_FINGERPRINT)
   assert.equal(b.fingerprint, GOLDEN_REPLAY_FINGERPRINT)
   assert.deepEqual(a.snapshot, b.snapshot)
@@ -49,11 +50,26 @@ test('replay rejects non-canonical event ordering and sequence gaps', async () =
   await assert.rejects(runReplay(replay([{ tick: 10, seq: 1, kind: 'move', moveX: 1, moveZ: 0 }])), /contiguous/)
 })
 
-test('replay fails closed when metadata claims an unimplemented world or mode', async () => {
+test('replay fails closed for every simulation-affecting metadata mismatch', async () => {
   const base = defaultReplayHeader()
-  await assert.rejects(runReplay(replay([], 1, { ...base, dimensionMode: '2.5d' })), /Dimension/)
-  await assert.rejects(runReplay(replay([], 1, { ...base, levelVersion: 2 })), /Level/)
-  await assert.rejects(runReplay(replay([], 1, { ...base, seed: 42 })), /seed/)
+  const cases = [
+    ['protocolVersion', base.protocolVersion + 1, /protocol/],
+    ['simulationVersion', 'other-sim', /Simulation version/],
+    ['rapierPackage', 'other-rapier', /Rapier version/],
+    ['rapierVersion', '9.9.9', /Rapier version/],
+    ['fingerprintVersion', base.fingerprintVersion + 1, /Fingerprint version/],
+    ['physicsPresetId', 'other-preset', /Physics preset/],
+    ['tickRate', 30, /Tick rate/],
+    ['levelId', 'other-level', /Level version/],
+    ['levelVersion', base.levelVersion + 1, /Level version/],
+    ['seed', 42, /seed/],
+    ['dimensionMode', '2.5d', /Dimension/],
+    ['controlMode', 'hold-release', /Control/],
+    ['assistPresetId', 'other-assist', /Assist/],
+  ]
+  for (const [field, value, pattern] of cases) {
+    await assert.rejects(runReplay(replay([], 1, { ...base, [field]: value })), pattern, field)
+  }
 })
 
 test('replay rejects malformed runtime event kinds', async () => {

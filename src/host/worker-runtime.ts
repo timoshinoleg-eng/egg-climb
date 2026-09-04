@@ -4,7 +4,7 @@ import {
   SIMULATION_VERSION,
   WORKER_PROTOCOL_VERSION,
 } from '../sim/config.js'
-import type { TickInput } from '../sim/contracts.js'
+import type { SimulationSnapshot, TickInput } from '../sim/contracts.js'
 import type { RapierApi } from '../sim/rapier.js'
 import { createSimulationWithRapier } from '../sim/simulation-core.js'
 import type { Simulation } from '../sim/simulation-core.js'
@@ -25,8 +25,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export class SimulationWorkerRuntime {
   private simulation: Simulation | undefined
-  private previous
-  private current
+  private previous: SimulationSnapshot | undefined
+  private current: SimulationSnapshot | undefined
   private closed = false
   private requestQueue: Promise<void> = Promise.resolve()
 
@@ -35,27 +35,22 @@ export class SimulationWorkerRuntime {
   enqueue(rawRequest: unknown): Promise<WorkerResponse> {
     let resolveResponse: (response: WorkerResponse) => void = () => undefined
     const responsePromise = new Promise<WorkerResponse>((resolve) => { resolveResponse = resolve })
-    this.requestQueue = this.requestQueue.then(async () => {
-      resolveResponse(this.handle(rawRequest))
-    }, async () => {
-      resolveResponse(this.handle(rawRequest))
-    })
+    const run = () => { resolveResponse(this.handle(rawRequest)) }
+    this.requestQueue = this.requestQueue.then(run, run)
     return responsePromise
   }
 
-  private response(id: number, response: Omit<WorkerResponse, 'id' | 'protocolVersion'>): WorkerResponse {
-    return { ...response, id, protocolVersion: WORKER_PROTOCOL_VERSION } as WorkerResponse
-  }
-
   private error(id: number, message: string): WorkerResponse {
-    return this.response(id, { type: 'error', message })
+    return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'error', message }
   }
 
-  private createFreshSimulation(): void {
+  private createFreshSimulation(): SimulationSnapshot {
     this.simulation?.free()
     this.simulation = createSimulationWithRapier(this.RAPIER)
-    this.previous = this.simulation.snapshot()
-    this.current = this.previous
+    const snapshot = this.simulation.snapshot()
+    this.previous = snapshot
+    this.current = snapshot
+    return snapshot
   }
 
   private handle(rawRequest: unknown): WorkerResponse {
@@ -74,36 +69,40 @@ export class SimulationWorkerRuntime {
           this.current = undefined
           this.closed = true
         }
-        return this.response(id, { type: 'freed' })
+        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'freed' }
       }
 
       if (this.closed) return this.error(id, 'Simulation worker is closed')
 
       if (request.type === 'init') {
         if (this.simulation) return this.error(id, 'Simulation worker is already initialized')
-        this.createFreshSimulation()
-        return this.response(id, { type: 'initialized', snapshot: this.current, runtimeInfo: RUNTIME_INFO })
+        const snapshot = this.createFreshSimulation()
+        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'initialized', snapshot, runtimeInfo: RUNTIME_INFO }
       }
 
-      if (!this.simulation) return this.error(id, 'Simulation worker is not initialized')
+      if (!this.simulation || !this.current) return this.error(id, 'Simulation worker is not initialized')
 
       if (request.type === 'advance') {
         assertTickInputs(request.inputs as readonly TickInput[])
+        let previous = this.current
+        let current = previous
         for (const input of request.inputs) {
-          this.previous = this.current
+          previous = current
           this.simulation.step(input)
-          this.current = this.simulation.snapshot()
+          current = this.simulation.snapshot()
         }
-        return this.response(id, { type: 'advanced', frame: { previous: this.previous, current: this.current, stepped: request.inputs.length } })
+        this.previous = previous
+        this.current = current
+        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'advanced', frame: { previous, current, stepped: request.inputs.length } }
       }
 
       if (request.type === 'fingerprint') {
-        return this.response(id, { type: 'fingerprint', fingerprint: this.simulation.fingerprint(), tick: this.simulation.tick })
+        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'fingerprint', fingerprint: this.simulation.fingerprint(), tick: this.simulation.tick }
       }
 
       if (request.type === 'reset') {
-        this.createFreshSimulation()
-        return this.response(id, { type: 'reset', snapshot: this.current })
+        const snapshot = this.createFreshSimulation()
+        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'reset', snapshot }
       }
 
       return this.error(id, 'Unsupported simulation worker request')

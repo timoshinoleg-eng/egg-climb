@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
-import { findSimDeterminismViolations } from '../scripts/sim-determinism-policy.mjs'
+import { findAuthoritativeHostViolations, findSimDeterminismViolations } from '../scripts/sim-determinism-policy.mjs'
 
 async function sourceFiles(dir) {
   const entries = await readdir(dir, { withFileTypes: true })
@@ -24,11 +24,16 @@ test('authoritative simulation satisfies the AST determinism allowlist', async (
   }
 })
 
-test('AST determinism policy rejects portability and boundary hazards', () => {
+test('authoritative worker runtime is typed and covered by its transport policy', async () => {
+  const file = 'src/host/worker-runtime.ts'
+  const source = await readFile(file, 'utf8')
+  assert.deepEqual(findAuthoritativeHostViolations(source, file), [])
+})
+
+test('AST simulation policy rejects portability and boundary hazards', () => {
   const unsafe = `
     import * as THREE from 'three'
     import { thing } from '../render/thing.js'
-    export { other } from '../host/other.js'
     const a = 2 ** 3
     const b = 5 % 2
     const c = Math.hypot(a, b)
@@ -39,11 +44,15 @@ test('AST determinism policy rejects portability and boundary hazards', () => {
     const g = crypto.getRandomValues(new Uint32Array(1))
     const h = structuredClone({ x: 1 })
     const i = globalThis.Math.sqrt(4)
-    const j = import('../render/lazy.js')
+    const j = Reflect.get(Math, 'random')
+    const k = self.Math.random()
+    const l = WebAssembly.instantiate(new Uint8Array())
+    const m = import('../render/lazy.js')
+    const n = import.meta.url
   `
   const violations = findSimDeterminismViolations(unsafe, 'src/sim/unsafe.ts').join('\n')
   assert.match(violations, /external import is not allowed/)
-  assert.match(violations, /relative import escapes authoritative src\/sim boundary/)
+  assert.match(violations, /relative import escapes authoritative boundary/)
   assert.match(violations, /exponentiation operator/)
   assert.match(violations, /remainder operator/)
   assert.match(violations, /Math\.hypot/)
@@ -53,10 +62,14 @@ test('AST determinism policy rejects portability and boundary hazards', () => {
   assert.match(violations, /crypto/)
   assert.match(violations, /structuredClone/)
   assert.match(violations, /globalThis/)
+  assert.match(violations, /Reflect/)
+  assert.match(violations, /self/)
+  assert.match(violations, /WebAssembly/)
   assert.match(violations, /dynamic import/)
+  assert.match(violations, /import\.meta/)
 })
 
-test('AST determinism policy allows internal sim imports and the explicit portable math set', () => {
+test('AST simulation policy allows internal sim imports and the explicit portable math set', () => {
   const safe = `
     import type { TickInput } from './contracts.js'
     import RAPIER from '@dimforge/rapier3d-deterministic-compat'
@@ -67,4 +80,20 @@ test('AST determinism policy allows internal sim imports and the explicit portab
     export type { TickInput } from './contracts.js'
   `
   assert.deepEqual(findSimDeterminismViolations(safe, 'src/sim/rapier.ts'), [])
+})
+
+test('authoritative host policy rejects clocks, ambient globals and imports outside host/sim', () => {
+  const unsafe = `
+    import { x } from '../render/x.js'
+    const a = Date.now()
+    const b = Math.random()
+    const c = self.location
+    const d = import.meta.url
+  `
+  const violations = findAuthoritativeHostViolations(unsafe, 'src/host/worker-runtime.ts').join('\n')
+  assert.match(violations, /relative import escapes authoritative boundary/)
+  assert.match(violations, /Date/)
+  assert.match(violations, /Math is not allowed/)
+  assert.match(violations, /self/)
+  assert.match(violations, /import\.meta/)
 })

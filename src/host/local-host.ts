@@ -17,8 +17,8 @@ export class LocalSimulationHost implements SimulationHost {
 
   async advance(inputs: readonly TickInput[]): Promise<SimulationFrame> {
     if (this.closed) throw new Error('Simulation host is closed')
-    assertTickInputs(inputs)
     if (!this.simulation) throw new Error('Simulation host is not initialized')
+    assertTickInputs(inputs)
     let previous = this.simulation.snapshot()
     let current = previous
     for (const input of inputs) {
