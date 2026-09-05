@@ -1,6 +1,6 @@
 import { defaultReplayHeader, runReplay } from '../dist/sim/index.js'
 
-const GOLDEN_REPLAY_FINGERPRINT = 'ec643eb8'
+const GOLDEN_REPLAY_FINGERPRINT = '4f677949'
 const replay = {
   header: defaultReplayHeader(),
   inputEvents: [

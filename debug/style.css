@@ -1,6 +1,19 @@
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0b1120; color: #e5e7eb; font: 13px/1.4 system-ui, sans-serif; }
 #viewport { display: block; width: 100%; height: 100%; touch-action: none; }
-#hud { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); display: grid; gap: 4px; padding: 10px 12px; max-width: min(320px, 75vw); background: rgba(3, 7, 18, .78); border: 1px solid rgba(255,255,255,.16); border-radius: 10px; pointer-events: none; backdrop-filter: blur(4px); }
+#hud, #labPanel { position: fixed; display: grid; gap: 5px; padding: 10px 12px; background: rgba(3, 7, 18, .84); border: 1px solid rgba(255,255,255,.16); border-radius: 10px; backdrop-filter: blur(4px); }
+#hud { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); max-width: min(360px, 76vw); pointer-events: none; }
+#labPanel { top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: min(220px, 42vw); color: #dbeafe; }
+#labPanel label { display: grid; gap: 2px; font-size: 11px; color: #bfdbfe; }
+#labPanel select, #labPanel input, #labPanel textarea, #labPanel button, .lab-actions button { color: #e5e7eb; background: #111827; border: 1px solid #475569; border-radius: 5px; padding: 4px 6px; font: inherit; }
+#labPanel button, .lab-actions button { cursor: pointer; }
+#labPanel textarea { resize: vertical; }
+#attemptCard { color: #fbbf24; font-size: 11px; min-height: 30px; }
+.lab-actions { display: flex; gap: 6px; pointer-events: auto; }
+#chargeMeter { height: 6px; background: rgba(148,163,184,.22); border-radius: 99px; overflow: hidden; }
+#chargeMeter i { display: block; width: 0; height: 100%; background: linear-gradient(90deg,#38bdf8,#f59e0b); transition: width .06s linear; }
+body.feel-pulse #viewport { filter: brightness(1.28) saturate(1.18); }
 #hud strong { letter-spacing: .12em; color: #fbbf24; }
 #unsupported { position: fixed; inset: 0; display: grid; place-items: center; padding: 32px; text-align: center; background: #0b1120; font-size: 18px; }
 #unsupported[hidden] { display: none; }
+@media (max-width: 720px) { #labPanel { top: auto; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; right: 10px; width: auto; grid-template-columns: repeat(3, 1fr); } #labPanel #attemptCard, #labPanel textarea, #labPanel button { grid-column: 1 / -1; } #hud { max-width: 58vw; } }
+@media (max-width: 720px) { #labPanel { bottom: max(78px, env(safe-area-inset-bottom)); max-height: 28vh; overflow-y: auto; } #hud { max-width: calc(100vw - 50px); max-height: 22vh; overflow-y: auto; pointer-events: auto; } }

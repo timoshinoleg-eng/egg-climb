@@ -9,7 +9,6 @@ mass properties, support classification, or physics preset hash.
 Expose one immutable, versioned `FeelPreset` identity through the same simulation
 options used by local and worker hosts. The preset is part of replay metadata and
 the authoritative fingerprint. A replay must fail closed if its feel id, version,
-or hash is unavailable or different. The default remains `3d-tap-raw-v1`, so an
 or hash is unavailable or different. The default remains the `3d-tap` preset
 (`version: 1`, no assist), so an existing physics-v1 run keeps its baseline
 behavior when no feel option is given.
@@ -27,12 +26,12 @@ This yields eight explicit keys: `2d-tap`, `2d-tap-assist`, `2d-hold`,
 explicit `version` field; the version is part of its canonical hash and replay
 identity. `3d-tap` is the baseline and is never silently replaced by a new default.
 
-All variants share the following initial constants:
+Presets use the following initial constants:
 
-- input buffer: 6 simulation ticks;
-- coyote time: 4 simulation ticks after leaving support;
-- hold charge: 30 ticks maximum;
-- jump scale: `0.55..1.0`, monotonic with held charge;
+- assisted input buffer: 6 simulation ticks; raw: 0;
+- assisted coyote time: 4 simulation ticks after leaving support; raw: 0;
+- hold-release charge: 30 ticks maximum; tap has no charge;
+- hold-release jump scale: `0.55..1.0`, monotonic with held charge; tap: 1;
 - tip-hold assist: only in `assist` variants, damping angular velocity by
   `0.012 * contactT²` per eligible held tick, capped by the versioned preset;
 - damping is applied only while the hold is active and the egg is supported;
@@ -59,11 +58,7 @@ plain client, touch buttons, diagnostic telemetry, and exported tick inputs.
 
 ## Measurement rules
 
-Every run records: preset id/version/hash, physics id/version/hash, scenario id,
-seed, browser/OS, input method, exact raw tick inputs, reset/chunk schedule, and
-diagnostic telemetry. At minimum export jump-down/release ticks, grounded,
-contactT, coyote/buffer consumption, launch scale, apex tick/height, landing tick,
-and final fingerprint. Derived scores must never replace the raw event stream.
+Every finalized run exports runtime/physics/feel/collider identities, scenario, exact raw tick inputs and final fingerprint. Completed attempts include approximate launch/apex/landing ticks, apex height, landing position, accepted jump source and strength. Explicit ratings and notes remain attached to their own run. ContactT, grounded and current charge are live diagnostics; they are not a per-tick telemetry export. Reset/variant changes preserve separate finalized runs. Node replay reconstructs authoritative state from the raw inputs.
 
 The scripted suite verifies mechanics and transport parity only. It must not report
 a human preference winner. Human playtests use the protocol in

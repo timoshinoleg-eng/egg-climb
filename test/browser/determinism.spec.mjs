@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-const GOLDEN_REPLAY_FINGERPRINT = 'ec643eb8'
+const GOLDEN_REPLAY_FINGERPRINT = '4f677949'
 
 function attachDiagnostics(page, browserName) {
   page.on('console', message => console.log(`[browser-console:${browserName}] ${message.type()} ${message.text()}`))

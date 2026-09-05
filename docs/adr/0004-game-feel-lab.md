@@ -14,7 +14,7 @@ Tip-hold applies a bounded angular damping impulse while held and supported: `-a
 
 Replay protocol and worker protocol are version 3; simulation is `sim-feel-lab-v1`, authoritative state version 4. Feel id/version/hash are checked fail-closed in replay, worker handshake and snapshot identity. Held state, consumption latch, buffered scale/deadline, charge, coyote and cached contact are canonically serialized. Debug-only last-jump labels/telemetry do not affect the fingerprint.
 
-The new candidate golden is `4f677949`; it must be observed across the three Node platforms and three browser engines before replacing the prior `ec643eb8` golden. The fingerprint change follows the intentional simulation/state/version contract update.
+The golden is `4f677949`, replacing `ec643eb8` after [CI run 33990312421](https://github.com/timoshinoleg-eng/egg-climb/actions/runs/33990312421) observed the same value on Linux x64, Windows x64, macOS ARM64, Chromium, Firefox and WebKit. That evidence run intentionally retained the previous golden, so its only failures were the stale golden assertions. The fingerprint change follows the intentional simulation/state/version contract update.
 
 The debug UI offers plain/feedback visual presets, keyboard and pointer controls, charge feedback, three-attempt observations and player ratings. Visual effects and wall-clock session labels are main-thread diagnostics only. Raw input samples use monotonically increasing authoritative tick numbers. Export pauses sampling, drains worker transport and binds a final fingerprint; `npm run replay:playtest -- export.json` verifies it in Node. Trajectory/apex observations from transport batches are explicitly approximate; scripted apex tests sample every tick.
 

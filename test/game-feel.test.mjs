@@ -95,3 +95,19 @@ test('hold cancellation does not launch or leave a held charge', async () => {
     assert.ok(Math.abs(after.linearVelocity.y) < 0.25)
   } finally { simulation.free() }
 })
+
+test('tip assist reduces actual angular departure while charging on tip contact', async () => {
+  const scenario = physicsLabScenario('jump-tip')
+  const speeds = []
+  for (const key of ['2d-hold', '2d-hold-assist']) {
+    const simulation = await createSimulation({ feel: FEEL_PRESETS[key], level: scenario.level, initialEgg: {
+      ...scenario.initialEgg, position: [0, 0.8, 0], rotation: [0, 0, 0.9990482216, -0.0436193874], angularVelocity: [0, 0, 0.2],
+    } })
+    try {
+      for (let tick = 0; tick < 12; tick++) simulation.step({ ...NEUTRAL, jumpDown: tick === 0 })
+      assert.ok(simulation.snapshot().physics.contactT > 0.9)
+      speeds.push(Math.abs(simulation.snapshot().angularVelocity.z))
+    } finally { simulation.free() }
+  }
+  assert.ok(speeds[1] < speeds[0] * 0.9, `raw=${speeds[0]} assisted=${speeds[1]}`)
+})

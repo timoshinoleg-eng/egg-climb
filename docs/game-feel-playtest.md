@@ -1,77 +1,35 @@
-# Game Feel Lab — human playtest matrix
+# Game Feel Lab — playtest protocol
 
-This is a small controlled comparison of the eight versioned feel presets. It is
-not a content test and does not seek to prove a universal winner.
+The lab compares eight explicit variants, not a final game mode. Default is `3d-tap` with no assistance. Keyboard and pointer controls are available. No human ratings have been collected by the automated tests.
 
-## Session protocol
+## Run
 
-Use the same short task course for every condition: (1) move to a marked platform,
-(2) jump across a fixed gap, (3) recover from one angled landing, and (4) repeat
-the gap three times. Keep camera, level geometry, physics-v1, seed, display size,
-and control labels constant. The client shows only the plain control surface and
-feedback needed to understand the current action; diagnostics are exported after
-the run rather than used to coach the participant.
+Start `npm run debug:serve` and open `http://127.0.0.1:4173/?feel=3d-tap&scenario=jump-base&visual=plain&order=0`.
 
-Each participant completes one warm-up, then three scored attempts per preset.
-Discard only a run with a technical fault, recording the fault and replacement
-attempt. Do not restart because of a miss. The facilitator does not name a preset
-or describe it as assisted.
+Use the same three existing fixtures in each condition:
 
-## Counterbalanced order
+1. `jump-base`: make three controlled launches and observe landing recovery.
+2. `jump-side`: use torque, launch, and try to recover without leaving the platform.
+3. `slope-contact`: steer and launch on the incline; record unintended drift or missed inputs.
 
-Use a Latin-square order over eight conditions. Assign participant `p` to row
-`p mod 8`; reverse the row for every second block. Keep the baseline
-`3d-tap-raw-v1` as the first scored condition for the first half of participants
-and as the final scored condition for the second half. This gives a baseline
-anchor without making baseline-first the universal order. Within a condition, the
-three attempts are consecutive and use the same seed.
+Use arrows/WASD or pointer buttons. TAP launches on down. HOLD_RELEASE charges for up to 30 ticks (half a second) and launches on release; blur/cancel discards the charge. Reset starts a fresh run. A completed attempt is an accepted jump followed by a landing; a fall or abandoned attempt remains visible in raw inputs/notes rather than falsely counted as a landing.
 
-| block | order rule |
-| --- | --- |
-| A | Latin-square row, baseline first when assigned to an even row |
-| B | reverse Latin-square row, baseline last when assigned to an odd row |
+The UI reports up to three completed attempts per run. Trajectory/apex/landing observations are sampled at worker batch boundaries and are approximate. Raw tick inputs and the final fingerprint are exact. There are no completion/fall leaderboards or production course claims.
 
-The exported manifest must contain the actual order; the planned order is never
-reconstructed from participant id after the fact.
+## Order and controls
 
-## Per-attempt capture
+Keep physics-v1, fixture, viewport, device and visual preset fixed while comparing feel. The eight keys are `3d-tap`, `2d-tap`, `3d-hold`, `2d-hold`, then the same four with `-assist`.
 
-Record the raw tick input file and diagnostic telemetry for each attempt. Capture
-completion, falls, retries, time to finish, jump-down and release ticks, apex and
-landing ticks, buffer/coyote use, contactT at launch/landing, and the exact preset
-and physics identities. A short post-condition questionnaire uses 1–7 ratings:
+Choose an anonymous order row 0–7. The balanced order uses base indices `[0,1,7,2,6,3,5,4]`, shifted by the row modulo eight. Next variant follows that order. Export records the planned order and separately preserves actual run history. This counterbalances ordering; it does not force baseline first for everyone. Do one unscored warm-up before recording comparisons.
 
-| measure | prompt |
-| --- | --- |
-| control | “I could make the egg do what I intended.” |
-| timing | “Jump timing felt predictable.” |
-| recovery | “Recovering from a bad landing felt fair.” |
-| effort | “The control scheme required reasonable effort.” |
-| confidence | “I would choose this control setup for the next attempt.” |
+After each condition, record the implemented 1–5 ratings: clarity, control, fun, and a short note. Describe missed release timing, unwanted lateral drift, helpful buffering or assistance that felt excessive. Do not treat an initial rating value as a submitted vote: Save rating is explicit.
 
-Ask one open question: “What moment felt most satisfying or frustrating, and why?”
-Collect no identifying data in the game export; keep consent and participant
-mapping in the separate study log.
+Compare `plain` and `feedback` separately after selecting candidate control modes; changing both feel and visuals in the same comparison confounds the result. The UI displays developer preset labels and diagnostics, so this is an open development playtest, not a blinded study.
 
-## Analysis plan
+## Export and reproduce
 
-Summarize each preset with attempt-level completion/fall metrics and the median of
-each rating, retaining participant-level rows. Analyze condition differences with
-participant as the repeated unit and report uncertainty and missing runs. Inspect
-comments alongside telemetry to explain effects such as a helpful coyote window,
-an overlong hold, or tip assistance masking a poor landing.
+Export JSON pauses sampling and drains queued/in-flight worker ticks before capturing identity and fingerprint. Changing variants or resetting archives the previous finalized run separately; ratings from different presets must not be merged into one run. The bounded local history preserves up to 24 runs; export a file before starting a larger block.
 
-Do not pool three attempts as independent people, do not infer preference from
-scripted trajectories, and do not call a preset a winner from mechanics-only
-tests. A candidate is ready for a next design pass only when the observed effect is
-clear in ratings or behavior, the raw exports are complete, and no parity or replay
-identity gate is failing.
+Run `npm run replay:playtest -- path/to/export.json` to validate contiguous ticks, runtime/physics/feel/collider identity and the final fingerprint of the current and archived runs. Reports remain local; no backend or user account is required. Do not place personal identifiers in notes.
 
-## Operator checklist
-
-- [ ] Confirm browser, viewport, input device, seed, and physics-v1 identity.
-- [ ] Load the assigned order and verify the displayed preset label is neutral.
-- [ ] Run warm-up, then three attempts per condition without changing the course.
-- [ ] Export raw tick inputs, telemetry, ratings, comments, and actual order.
-- [ ] Log technical faults and replacement attempts explicitly.
-- [ ] Preserve the export with the preset and physics hashes before analysis.
+Summarize ratings per participant/condition and read notes alongside accepted jump sources, raw inputs and approximate trajectories. Do not pool three attempts as three independent people. Mechanical tests establish correctness and portability, not preference. Record the actual people/devices tested before choosing 2.5D/3D, TAP/HOLD_RELEASE or assist defaults.

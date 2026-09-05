@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Egg Climb — Simulation Debug</title>
+  <title>Egg Climb — Game Feel Lab</title>
   <link rel="stylesheet" href="./style.css" />
   <script type="importmap">
   {
@@ -16,12 +16,30 @@
 <body>
   <canvas id="viewport" aria-label="Egg Climb physics debug viewport"></canvas>
   <aside id="hud">
-    <strong>SIM DEBUG</strong>
+    <strong>GAME FEEL LAB</strong>
     <span id="status">initializing…</span>
     <span id="telemetry"></span>
-    <span>WASD / arrows: torque input</span>
-    <span>Physics Lab: <code>?physics=lab-a&amp;scenario=jump-tip</code></span>
+    <span id="feelReadout"></span>
+    <span>←/→ move · ↑/↓ forward/back in 3D · Space jump</span>
+    <span>Pointer: hold arrows to steer · HOLD_RELEASE charges Jump</span>
     <span>Red = COM · green = support contact · cyan = support normal</span>
+    <div id="chargeMeter" aria-label="Jump charge"><i></i></div>
+    <div class="lab-actions">
+      <button id="resetButton" type="button">Reset</button>
+      <button id="exportButton" type="button">Export JSON</button>
+    </div>
+  </aside>
+  <aside id="labPanel" aria-label="Game Feel Lab controls">
+    <label>Feel <select id="feelSelect"></select></label>
+    <label>Fixture <select id="scenarioSelect"><option value="default">foundation</option><option value="jump-base">jump-base</option><option value="jump-side">jump-side</option><option value="slope-contact">slope-contact</option></select></label>
+    <label>Visual <select id="visualSelect"><option value="plain">plain</option><option value="feedback">feedback</option></select></label>
+    <div id="attemptCard"></div>
+    <button id="nextVariant" type="button">Next balanced variant</button>
+    <label>Clarity <input id="clarityRating" type="number" min="1" max="5" value="3"></label>
+    <label>Control <input id="controlRating" type="number" min="1" max="5" value="3"></label>
+    <label>Fun <input id="funRating" type="number" min="1" max="5" value="3"></label>
+    <label>Notes <textarea id="notes" rows="2" placeholder="Optional playtest note"></textarea></label>
+    <button id="saveRating" type="button">Save rating</button>
   </aside>
   <div id="unsupported" hidden>WebGL2 is required for the debug renderer.</div>
   <script type="module" src="./main.js"></script>
