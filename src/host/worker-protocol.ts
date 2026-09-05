@@ -19,9 +19,9 @@ export interface WorkerRuntimeInfo {
   readonly simulationVersion: typeof SIMULATION_VERSION
   readonly rapierPackage: typeof RAPIER_PACKAGE
   readonly rapierVersion: typeof RAPIER_VERSION
-  readonly physicsPresetId: typeof PHYSICS_PRESET_ID
-  readonly physicsPresetVersion: typeof PHYSICS_PRESET_VERSION
-  readonly physicsPresetHash: typeof PHYSICS_PRESET_HASH
+  readonly physicsPresetId: string
+  readonly physicsPresetVersion: number
+  readonly physicsPresetHash: string
   readonly eggColliderId: typeof EGG_COLLIDER_ID
   readonly eggColliderVersion: typeof EGG_COLLIDER_VERSION
   readonly eggColliderHash: typeof EGG_COLLIDER_HASH

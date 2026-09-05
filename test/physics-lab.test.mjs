@@ -48,15 +48,6 @@ async function jumpMetric(id, preset = PHYSICS_V1) {
   }, preset)
 }
 
-function variant(id, centerOfMassY, baseImpulse, tipImpulse, worldUpWeight, contactNormalWeight) {
-  return {
-    ...PHYSICS_V1,
-    id,
-    egg: { ...PHYSICS_V1.egg, centerOfMassY },
-    jump: { ...PHYSICS_V1.jump, baseImpulse, tipImpulse, worldUpWeight, contactNormalWeight },
-  }
-}
-
 function localUpY(snapshot) {
   const { x, z } = snapshot.rotation
   return 1 - 2 * (x * x + z * z)
@@ -166,23 +157,23 @@ test('broad-base 5-degree perturbation is stable while tip-biased perturbation f
   assert.ok(tip.maxAngular > base.maxAngular * 1.25, `base=${base.maxAngular} tip=${tip.maxAngular}`)
 })
 
-test('small Physics Lab candidate matrix documents why physics-v1 is the balanced choice', async () => {
-  const candidates = [
-    variant('physics-lab-a', -0.08, 2.5, 4.8, 0.9, 0.1),
-    PHYSICS_V1,
-    variant('physics-lab-c', -0.16, 2.7, 5.6, 0.8, 0.2),
-  ]
-  const rows = []
-  for (const preset of candidates) {
-    const base = await jumpMetric('jump-base', preset)
-    const side = await jumpMetric('jump-side', preset)
-    const tip = await jumpMetric('jump-tip', preset)
-    assert.ok(base.rise < side.rise && side.rise < tip.rise, preset.id)
-    rows.push({ id: preset.id, centerOfMassY: preset.egg.centerOfMassY, baseRise: base.rise, sideRise: side.rise, tipRise: tip.rise, worldUpWeight: preset.jump.worldUpWeight })
+test('candidate experiments verify COM recovery, curve margins and slope direction choice', async () => {
+  const { experimentMatrix } = await import('../scripts/physics-lab-experiment.mjs')
+  const metrics = await experimentMatrix()
+  console.log('[physics-lab-experiments]', JSON.stringify(metrics))
+  const [a, b, c] = metrics.rows
+  for (const row of metrics.rows) {
+    assert.ok(row.tip.rise > row.side.rise && row.side.rise > row.base.rise)
+    assert.ok(row.baseStability.upY > 0.9)
+    assert.ok(row.tipStability.upY > -0.5)
+    assert.ok(row.controlLeft < -0.8 && row.controlRight > 0.8)
   }
-  console.log('[physics-lab-matrix]', JSON.stringify(rows))
-  assert.equal(rows[1].id, 'physics-v1')
-  assert.ok(rows[1].tipRise / rows[1].baseRise > 2)
+  assert.ok(b.side.rise - b.base.rise > 0.1)
+  assert.ok(c.side.rise - c.base.rise < 0.1, 'tip-reward candidate compresses side reward')
+  assert.ok(b.side.recoveryTick < a.side.recoveryTick, 'selected candidate recovers sooner')
+  assert.ok(metrics.com[1].upY > metrics.com[3].upY + 0.5, 'isolated COM shift must improve base return')
+  assert.ok(metrics.directions[2].rise > metrics.directions[4].rise + 0.02)
+  assert.ok(metrics.directions[2].lateral < metrics.directions[0].lateral)
 })
 
 test('repeated Physics Lab runs produce the same final fingerprint', async () => {

@@ -83,6 +83,14 @@ export interface PhysicsDebugSnapshot {
 
 export interface SimulationSnapshot {
   readonly tick: number
+  readonly identity: Readonly<{
+    physicsPresetId: string
+    physicsPresetVersion: number
+    physicsPresetHash: string
+    eggColliderId: string
+    eggColliderVersion: number
+    eggColliderHash: string
+  }>
   readonly position: Vector3Snapshot
   readonly rotation: Readonly<{ x: number; y: number; z: number; w: number }>
   readonly linearVelocity: Vector3Snapshot

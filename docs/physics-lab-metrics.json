@@ -1,0 +1,194 @@
+{
+  "rows": [
+    {
+      "id": "physics-lab-a",
+      "curve": "NEAR_LINEAR",
+      "base": {
+        "contactT": 0,
+        "rise": 0.2519722580909729,
+        "lateral": 0,
+        "landingTick": 27,
+        "recoveryTick": 14
+      },
+      "side": {
+        "contactT": 0.3098591708801162,
+        "rise": 0.4129444658756256,
+        "lateral": 0.1273537278175354,
+        "landingTick": 35,
+        "recoveryTick": 116
+      },
+      "tip": {
+        "contactT": 1,
+        "rise": 0.9153878688812256,
+        "lateral": 0,
+        "landingTick": 52,
+        "recoveryTick": 14
+      },
+      "slope": {
+        "contactT": 3.8617093795013015e-8,
+        "rise": 0.307587206363678,
+        "lateral": 2.8531199544668198,
+        "landingTick": 31,
+        "recoveryTick": null
+      },
+      "baseStability": {
+        "upY": 0.9324889257618957,
+        "peakAngular": 1.135120274467085
+      },
+      "tipStability": {
+        "upY": 0.8263227213439295,
+        "peakAngular": 3.5219159174780765
+      },
+      "controlLeft": -1.1708219051361084,
+      "controlRight": 1.1767717599868774
+    },
+    {
+      "id": "physics-v1",
+      "curve": "EASED",
+      "base": {
+        "contactT": 0,
+        "rise": 0.2727769613265991,
+        "lateral": 0,
+        "landingTick": 28,
+        "recoveryTick": 14
+      },
+      "side": {
+        "contactT": 0.3098591708801162,
+        "rise": 0.40910932421684265,
+        "lateral": 0.08904755115509033,
+        "landingTick": 35,
+        "recoveryTick": 82
+      },
+      "tip": {
+        "contactT": 1,
+        "rise": 1.0707242488861084,
+        "lateral": 0,
+        "landingTick": 56,
+        "recoveryTick": 14
+      },
+      "slope": {
+        "contactT": 3.8617093795013015e-8,
+        "rise": 0.3173258304595947,
+        "lateral": 1.5138617022894323,
+        "landingTick": 31,
+        "recoveryTick": null
+      },
+      "baseStability": {
+        "upY": 0.9363485566345644,
+        "peakAngular": 1.112382650375375
+      },
+      "tipStability": {
+        "upY": 0.4412371542430815,
+        "peakAngular": 3.6441283306842425
+      },
+      "controlLeft": -1.107348084449768,
+      "controlRight": 1.117523193359375
+    },
+    {
+      "id": "physics-lab-c",
+      "curve": "TIP_REWARD",
+      "base": {
+        "contactT": 0,
+        "rise": 0.29380255937576294,
+        "lateral": 0,
+        "landingTick": 29,
+        "recoveryTick": 14
+      },
+      "side": {
+        "contactT": 0.3098591708801162,
+        "rise": 0.3569067418575287,
+        "lateral": 0.07973199337720871,
+        "landingTick": 32,
+        "recoveryTick": 76
+      },
+      "tip": {
+        "contactT": 1,
+        "rise": 1.2374935150146484,
+        "lateral": 0,
+        "landingTick": 60,
+        "recoveryTick": 14
+      },
+      "slope": {
+        "contactT": 3.8617093795013015e-8,
+        "rise": 0.3320602774620056,
+        "lateral": 2.0016012850683182,
+        "landingTick": 32,
+        "recoveryTick": null
+      },
+      "baseStability": {
+        "upY": 0.936315117229853,
+        "peakAngular": 1.1616271750902911
+      },
+      "tipStability": {
+        "upY": 0.5093446358970461,
+        "peakAngular": 3.8013646192187296
+      },
+      "controlLeft": -1.006493091583252,
+      "controlRight": 1.0310438871383667
+    }
+  ],
+  "com": [
+    {
+      "centerOfMassY": -0.08,
+      "upY": 0.9324889257618957,
+      "peakAngular": 1.135120274467085
+    },
+    {
+      "centerOfMassY": -0.12,
+      "upY": 0.9363485566345644,
+      "peakAngular": 1.112382650375375
+    },
+    {
+      "centerOfMassY": -0.16,
+      "upY": 0.936315117229853,
+      "peakAngular": 1.1616271750902911
+    },
+    {
+      "centerOfMassY": 0,
+      "upY": -0.0749977770067245,
+      "peakAngular": 2.058811614205523
+    }
+  ],
+  "directions": [
+    {
+      "normal": 0,
+      "contactT": 3.8617093795013015e-8,
+      "rise": 0.31817173957824707,
+      "lateral": 1.6969225867651403,
+      "landingTick": 31,
+      "recoveryTick": null
+    },
+    {
+      "normal": 0.1,
+      "contactT": 3.8617093795013015e-8,
+      "rise": 0.31779778003692627,
+      "lateral": 2.479619787540287,
+      "landingTick": 31,
+      "recoveryTick": null
+    },
+    {
+      "normal": 0.15,
+      "contactT": 3.8617093795013015e-8,
+      "rise": 0.3173258304595947,
+      "lateral": 1.5138617022894323,
+      "landingTick": 31,
+      "recoveryTick": null
+    },
+    {
+      "normal": 0.2,
+      "contactT": 3.8617093795013015e-8,
+      "rise": 0.3166605234146118,
+      "lateral": 4.2141280635260046,
+      "landingTick": 32,
+      "recoveryTick": null
+    },
+    {
+      "normal": 1,
+      "contactT": 3.8617093795013015e-8,
+      "rise": 0.2806604504585266,
+      "lateral": 2.505429075565189,
+      "landingTick": 33,
+      "recoveryTick": null
+    }
+  ]
+}
