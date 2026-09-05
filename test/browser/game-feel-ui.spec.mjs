@@ -14,7 +14,9 @@ test('Game Feel Lab exports reproducible separate runs and balanced navigation',
   await page.keyboard.up('Space')
   await page.locator('#clarityRating').fill('5')
   await page.locator('#saveRating').click()
-  await expect(page.locator('#attemptCard')).toContainText('Rating saved')
+  await expect(page.locator('#actionStatus')).toContainText('Rating saved')
+  await page.waitForTimeout(250)
+  await expect(page.locator('#actionStatus')).toContainText('Rating saved')
   await page.screenshot({ path: 'test-results/game-feel-desktop.png' })
   const downloadRecord = async () => {
     const pending = page.waitForEvent('download')
@@ -22,7 +24,7 @@ test('Game Feel Lab exports reproducible separate runs and balanced navigation',
     const download = await pending
     const record = JSON.parse(await readFile(await download.path(), 'utf8'))
     expect((await replayPlaytest(record)).matched).toBe(true)
-    await expect(page.locator('#attemptCard')).toContainText('Exported through tick')
+    await expect(page.locator('#actionStatus')).toContainText('Exported through tick')
     return record
   }
   const first = await downloadRecord()

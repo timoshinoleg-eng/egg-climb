@@ -1,3 +1,4 @@
+import { installMaxPlaytest, showMaxExport } from './max-playtest.js'
 import * as THREE from 'three'
 import { FixedTickInputScheduler } from '../dist/host/fixed-tick-scheduler.js'
 import { WorkerSimulationHost } from '../dist/host/worker-client.js'
@@ -19,6 +20,7 @@ const feelSelect = document.querySelector('#feelSelect')
 const scenarioSelect = document.querySelector('#scenarioSelect')
 const visualSelect = document.querySelector('#visualSelect')
 const attemptCard = document.querySelector('#attemptCard')
+const actionStatus = document.querySelector('#actionStatus')
 const unsupported = document.querySelector('#unsupported')
 const query = new URL(window.location.href).searchParams
 const physicsKey = query.get('physics') ?? 'physics-v1'
@@ -170,6 +172,7 @@ function installPointerControls() {
   button.addEventListener('pointerup', () => end(false)); button.addEventListener('pointercancel', () => end(true)); button.addEventListener('lostpointercapture', () => end(true))
 }
 installPointerControls()
+installMaxPlaytest()
 
 function resize() {
   const width = Math.max(1, window.innerWidth)
@@ -211,18 +214,19 @@ feelSelect.addEventListener('change', () => archiveAndReload({ feel: feelSelect.
 scenarioSelect.addEventListener('change', () => archiveAndReload({ scenario: scenarioSelect.value }))
 visualSelect.addEventListener('change', () => archiveAndReload({ visual: visualSelect.value }))
 document.querySelector('#resetButton').addEventListener('click', () => archiveAndReload({}))
-document.querySelector('#saveRating').addEventListener('click', () => { const values = ['clarity', 'control', 'fun'].map(key => Number(document.querySelector(`#${key}Rating`).value)); if (!values.every(value => Number.isInteger(value) && value >= 1 && value <= 5)) { attemptCard.textContent = 'Ratings must be integers 1–5'; return } session.ratings.push({ attempt: attempt.index, clarity: values[0], control: values[1], fun: values[2], notes: document.querySelector('#notes').value, tick: current.tick }); attemptCard.textContent = `Rating saved · attempt ${attempt.index}` })
+document.querySelector('#saveRating').addEventListener('click', () => { const values = ['clarity', 'control', 'fun'].map(key => Number(document.querySelector(`#${key}Rating`).value)); if (!values.every(value => Number.isInteger(value) && value >= 1 && value <= 5)) { actionStatus.textContent = 'Ratings must be integers 1–5'; return } session.ratings.push({ attempt: attempt.index, clarity: values[0], control: values[1], fun: values[2], notes: document.querySelector('#notes').value, tick: current.tick }); actionStatus.textContent = `Rating saved · attempt ${attempt.index}` })
 document.querySelector('#exportButton').addEventListener('click', async () => {
   if (exportBusy) return
-  attemptCard.textContent = 'Finishing queued ticks…'
+  actionStatus.textContent = 'Finishing queued ticks…'
   try {
     const payload = await finalizeCurrentRun()
     if (!payload) return
     payload.history = readHistory()
+    if (showMaxExport(payload)) { actionStatus.textContent = `Exported through tick ${payload.finishTick}`; return }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `egg-playtest-${feelKey}-${Date.now()}.json`; link.click(); URL.revokeObjectURL(link.href)
-    attemptCard.textContent = `Exported through tick ${payload.finishTick}`
-  } catch (error) { attemptCard.textContent = `Export failed: ${error instanceof Error ? error.message : String(error)}` }
+    actionStatus.textContent = `Exported through tick ${payload.finishTick}`
+  } catch (error) { actionStatus.textContent = `Export failed: ${error instanceof Error ? error.message : String(error)}` }
   finally { exportBusy = false }
 })
 let lastTime = performance.now()

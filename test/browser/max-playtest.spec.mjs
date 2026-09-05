@@ -1,0 +1,33 @@
+import { expect, test } from '@playwright/test'
+import { replayPlaytest } from '../../scripts/replay-playtest.mjs'
+
+test('MAX mobile shell keeps worker gameplay usable and exports replay without downloads', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Rendered mobile smoke uses Chromium')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('https://st.max.ru/js/max-web-app.js', route => route.fulfill({ contentType: 'text/javascript', body: 'window.WebApp={platform:"android"}' }))
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/debug/index.html?max=1&feel=2d-hold-assist&scenario=jump-base')
+  await expect(page.locator('#maxToolbar')).toHaveAttribute('data-platform', 'android')
+  await expect(page.locator('#labPanel')).toBeHidden()
+  await expect(page.locator('#hud')).toBeHidden()
+  await expect(page.locator('#status')).toContainText('running')
+  const jump = page.getByRole('button', { name: 'JUMP', exact: true })
+  const box = await jump.boundingBox()
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(200)
+  await page.mouse.up()
+  await page.getByRole('button', { name: 'Экспорт', exact: true }).click()
+  await expect(page.locator('#maxExportDialog')).toBeVisible()
+  const record = JSON.parse(await page.getByLabel('JSON записи теста').inputValue())
+  expect(record.samples.some(input => input.jumpDown)).toBe(true)
+  expect(record.samples.some(input => input.jumpUp)).toBe(true)
+  expect((await replayPlaytest(record)).matched).toBe(true)
+  await page.getByRole('button', { name: 'Закрыть', exact: true }).click()
+  await page.getByRole('button', { name: 'Настройки', exact: true }).click()
+  await expect(page.locator('#labPanel')).toBeVisible()
+  await page.getByRole('button', { name: 'Настройки', exact: true }).click()
+  await page.screenshot({ path: 'test-results/max-mobile-playtest.png' })
+  expect(errors).toEqual([])
+})

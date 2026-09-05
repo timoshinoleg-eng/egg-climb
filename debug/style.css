@@ -17,3 +17,14 @@ body.feel-pulse #viewport { filter: brightness(1.28) saturate(1.18); }
 #unsupported[hidden] { display: none; }
 @media (max-width: 720px) { #labPanel { top: auto; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; right: 10px; width: auto; grid-template-columns: repeat(3, 1fr); } #labPanel #attemptCard, #labPanel textarea, #labPanel button { grid-column: 1 / -1; } #hud { max-width: 58vw; } }
 @media (max-width: 720px) { #labPanel { bottom: max(78px, env(safe-area-inset-bottom)); max-height: 28vh; overflow-y: auto; } #hud { max-width: calc(100vw - 50px); max-height: 22vh; overflow-y: auto; pointer-events: auto; } }
+.max-playtest:not(.show-lab) #labPanel, .max-playtest:not(.show-debug) #hud { display: none; }
+#maxToolbar { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; right: 10px; display: flex; justify-content: center; gap: 5px; z-index: 5; }
+#maxToolbar button, #maxExportDialog button { border: 1px solid #64748b; border-radius: 8px; background: #111827; color: #f8fafc; min-height: 44px; padding: 7px 10px; }
+#maxHint { position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 12px; right: 12px; text-align: center; pointer-events: none; color: #cbd5e1; font-size: 12px; }
+.max-playtest #hud { top: calc(90px + env(safe-area-inset-top)); }
+.max-playtest #labPanel { top: auto; bottom: calc(90px + env(safe-area-inset-bottom)); max-height: 48dvh; overflow: auto; z-index: 4; }
+.max-playtest .pointer-control { min-width: 44px; min-height: 52px; touch-action: none; user-select: none; bottom: calc(18px + env(safe-area-inset-bottom)) !important; }
+#maxExportDialog { box-sizing: border-box; width: min(92vw, 560px); max-height: 85dvh; overflow: auto; background: #111827; color: #f8fafc; border: 1px solid #64748b; border-radius: 12px; }
+#maxExportDialog textarea { box-sizing: border-box; width: 100%; height: 25dvh; font-size: 12px; }
+#maxExportDialog output { display: block; padding-top: 8px; }
+#maxExportDialog::backdrop { background: #000b; }
