@@ -1,4 +1,5 @@
 import {
+  FINGERPRINT_VERSION,
   FOUNDATION_ASSIST_PRESET_ID,
   FOUNDATION_CONTROL_MODE,
   FOUNDATION_DIMENSION_MODE,
@@ -15,13 +16,18 @@ import {
 import type { Replay, ReplayInputEvent, SimulationSnapshot, TickInput } from './contracts.js'
 import { createSimulation } from './simulation.js'
 
-export interface ReplayResult { readonly snapshot: SimulationSnapshot; readonly fingerprint: string }
+export interface ReplayResult {
+  readonly snapshot: SimulationSnapshot
+  readonly fingerprint: string
+  readonly clientFingerprintMatches: boolean | null
+}
 
 function assertReplay(replay: Replay): void {
   const { header } = replay
   if (header.protocolVersion !== REPLAY_PROTOCOL_VERSION) throw new Error('Unsupported replay protocol')
   if (header.simulationVersion !== SIMULATION_VERSION) throw new Error('Simulation version mismatch')
   if (header.rapierPackage !== RAPIER_PACKAGE || header.rapierVersion !== RAPIER_VERSION) throw new Error('Rapier version mismatch')
+  if (header.fingerprintVersion !== FINGERPRINT_VERSION) throw new Error('Fingerprint version mismatch')
   if (header.physicsPresetId !== PHYSICS_PRESET_ID) throw new Error('Physics preset mismatch')
   if (header.tickRate !== PHYSICS_HZ) throw new Error('Tick rate mismatch')
   if (header.levelId !== FOUNDATION_LEVEL_ID || header.levelVersion !== FOUNDATION_LEVEL_VERSION) throw new Error('Level version mismatch')
@@ -31,6 +37,7 @@ function assertReplay(replay: Replay): void {
   if (header.assistPresetId !== FOUNDATION_ASSIST_PRESET_ID) throw new Error('Assist preset mismatch')
   if (!Number.isInteger(replay.finishTick) || replay.finishTick < 0) throw new Error('Invalid finish tick')
   if (!Array.isArray(replay.inputEvents)) throw new Error('Invalid input event list')
+  if (replay.clientFingerprint !== undefined && !/^[0-9a-f]{8}$/.test(replay.clientFingerprint)) throw new Error('Invalid client fingerprint')
 
   let currentTick = -1
   let expectedSeq = 0
@@ -75,7 +82,12 @@ export async function runReplay(replay: Replay): Promise<ReplayResult> {
       const input: TickInput = { moveX: state.moveX, moveZ: state.moveZ, jumpDown: edges.jumpDown, jumpUp: edges.jumpUp }
       simulation.step(input)
     }
-    return { snapshot: simulation.snapshot(), fingerprint: simulation.fingerprint() }
+    const fingerprint = simulation.fingerprint()
+    return {
+      snapshot: simulation.snapshot(),
+      fingerprint,
+      clientFingerprintMatches: replay.clientFingerprint === undefined ? null : replay.clientFingerprint === fingerprint,
+    }
   } finally {
     simulation.free()
   }

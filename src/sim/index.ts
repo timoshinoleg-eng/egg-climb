@@ -1,5 +1,6 @@
 export * from './config.js'
 export * from './contracts.js'
+export * from './fingerprint.js'
 export * from './hash.js'
 export * from './level.js'
 export * from './replay.js'

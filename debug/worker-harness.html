@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Worker determinism harness</title></head>
+<body>
+<output id="result">pending</output>
+<script type="module">
+  import { WorkerSimulationHost } from '../dist/host/worker-client.js'
+
+  const output = document.querySelector('#result')
+  const GOLDEN_REPLAY_FINGERPRINT = '4393dd6d'
+  const events = [
+    { tick: 10, kind: 'move', moveX: 1, moveZ: 0 },
+    { tick: 90, kind: 'move', moveX: 0, moveZ: 0.5 },
+    { tick: 150, kind: 'move', moveX: 0, moveZ: 0 },
+    { tick: 170, kind: 'jump', down: true },
+    { tick: 175, kind: 'jump', down: false },
+  ]
+
+  function exposeError(error) {
+    const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    output.textContent = 'error'
+    output.dataset.error = message
+    console.error('[worker-harness-error]', message)
+  }
+
+  window.addEventListener('error', event => exposeError(event.error ?? event.message))
+  window.addEventListener('unhandledrejection', event => exposeError(event.reason))
+
+  function buildInputs() {
+    let moveX = 0
+    let moveZ = 0
+    let jumpHeld = false
+    let cursor = 0
+    const inputs = []
+    for (let tick = 0; tick < 240; tick += 1) {
+      let jumpDown = false
+      let jumpUp = false
+      while (cursor < events.length && events[cursor].tick === tick) {
+        const event = events[cursor]
+        if (event.kind === 'move') {
+          moveX = event.moveX
+          moveZ = event.moveZ
+        } else if (event.down && !jumpHeld) {
+          jumpHeld = true
+          jumpDown = true
+        } else if (!event.down && jumpHeld) {
+          jumpHeld = false
+          jumpUp = true
+        }
+        cursor += 1
+      }
+      inputs.push({ moveX, moveZ, jumpDown, jumpUp })
+    }
+    return inputs
+  }
+
+  async function runChunks(host, inputs, chunkSizes) {
+    let cursor = 0
+    let chunkCursor = 0
+    let finalFrame
+    while (cursor < inputs.length) {
+      const requested = chunkSizes[chunkCursor % chunkSizes.length]
+      const end = Math.min(inputs.length, cursor + requested)
+      finalFrame = await host.advance(inputs.slice(cursor, end))
+      cursor = end
+      chunkCursor += 1
+    }
+    return finalFrame
+  }
+
+  const host = new WorkerSimulationHost(new URL('./sim-worker.js', import.meta.url))
+  try {
+    await host.init()
+    const info = host.runtimeInfo
+    let doubleInitRejected = false
+    try { await host.init() } catch { doubleInitRejected = true }
+    let emptyRejected = false
+    try { await host.advance([]) } catch { emptyRejected = true }
+
+    const inputs = buildInputs()
+    const baselineFrame = await runChunks(host, inputs, [120])
+    const fingerprint = await host.fingerprint()
+
+    await host.reset()
+    const chunkedFrame = await runChunks(host, inputs, [1, 7, 31, 4, 53, 9])
+    const chunkedFingerprint = await host.fingerprint()
+
+    const resetPromise = host.reset()
+    const queuedAdvancePromise = host.advance(Array.from({ length: 10 }, () => ({ moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false })))
+    const [resetSnapshot, queuedFrame] = await Promise.all([resetPromise, queuedAdvancePromise])
+
+    output.textContent = fingerprint
+    output.dataset.tick = String(baselineFrame.current.tick)
+    output.dataset.chunking = String(chunkedFingerprint === fingerprint && chunkedFrame.current.tick === baselineFrame.current.tick)
+    output.dataset.queue = String(resetSnapshot.tick === 0 && queuedFrame.current.tick === 10)
+    output.dataset.runtime = info?.runtime ?? 'missing'
+    output.dataset.rapierVersion = info?.rapierVersion ?? 'missing'
+    output.dataset.protocolVersion = String(info?.workerProtocolVersion ?? 'missing')
+    output.dataset.doubleInit = String(doubleInitRejected)
+    output.dataset.empty = String(emptyRejected)
+    output.dataset.expected = GOLDEN_REPLAY_FINGERPRINT
+  } catch (error) {
+    exposeError(error)
+  } finally {
+    await host.free().catch(error => exposeError(error))
+  }
+</script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import {
+  FINGERPRINT_VERSION,
   FOUNDATION_ASSIST_PRESET_ID,
   FOUNDATION_CONTROL_MODE,
   FOUNDATION_DIMENSION_MODE,
@@ -34,6 +35,7 @@ export interface ReplayHeader {
   readonly simulationVersion: typeof SIMULATION_VERSION
   readonly rapierPackage: typeof RAPIER_PACKAGE
   readonly rapierVersion: typeof RAPIER_VERSION
+  readonly fingerprintVersion: typeof FINGERPRINT_VERSION
   readonly physicsPresetId: typeof PHYSICS_PRESET_ID
   readonly tickRate: typeof PHYSICS_HZ
   readonly levelId: string
@@ -44,7 +46,13 @@ export interface ReplayHeader {
   readonly assistPresetId: string
 }
 
-export interface Replay { readonly header: ReplayHeader; readonly inputEvents: readonly ReplayInputEvent[]; readonly finishTick: number }
+export interface Replay {
+  readonly header: ReplayHeader
+  readonly inputEvents: readonly ReplayInputEvent[]
+  readonly finishTick: number
+  /** Untrusted client telemetry. A mismatch is nondeterminism evidence, never proof of cheating. */
+  readonly clientFingerprint?: string
+}
 
 export interface SimulationSnapshot {
   readonly tick: number
@@ -60,6 +68,7 @@ export function defaultReplayHeader(): ReplayHeader {
     simulationVersion: SIMULATION_VERSION,
     rapierPackage: RAPIER_PACKAGE,
     rapierVersion: RAPIER_VERSION,
+    fingerprintVersion: FINGERPRINT_VERSION,
     physicsPresetId: PHYSICS_PRESET_ID,
     tickRate: PHYSICS_HZ,
     levelId: FOUNDATION_LEVEL_ID,
