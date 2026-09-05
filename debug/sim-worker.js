@@ -1,9 +1,21 @@
 import RAPIER from '/node_modules/@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs'
 import { SimulationWorkerRuntime } from '../dist/host/worker-runtime.js'
+import { WORKER_PROTOCOL_VERSION } from '../dist/sim/config.js'
 
-await RAPIER.init()
-const runtime = new SimulationWorkerRuntime(RAPIER)
+const runtimePromise = RAPIER.init().then(() => new SimulationWorkerRuntime(RAPIER))
 
 self.addEventListener('message', (event) => {
-  runtime.enqueue(event.data).then((response) => self.postMessage(response))
+  const request = event.data
+  runtimePromise
+    .then(runtime => runtime.enqueue(request))
+    .then(response => self.postMessage(response))
+    .catch(error => {
+      const id = Number.isInteger(request?.id) ? request.id : -1
+      self.postMessage({
+        id,
+        protocolVersion: WORKER_PROTOCOL_VERSION,
+        type: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    })
 })
