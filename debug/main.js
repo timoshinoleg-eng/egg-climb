@@ -85,6 +85,7 @@ let lastTime = performance.now()
 let telemetryTimer = 0
 let advancePending = false
 let lastStepped = 0
+let paused = document.hidden
 status.textContent = 'running — physics worker is authoritative'
 
 function dispatchNextBatch() {
@@ -107,8 +108,10 @@ function dispatchNextBatch() {
 function frame(now) {
   const frameDelta = (now - lastTime) / 1000
   lastTime = now
-  scheduler.sampleFrame(frameDelta, sampleInput)
-  dispatchNextBatch()
+  if (!paused) {
+    scheduler.sampleFrame(frameDelta, sampleInput)
+    dispatchNextBatch()
+  }
 
   const alpha = scheduler.alpha
   const transform = interpolateSnapshots(previous, current, alpha)
@@ -132,7 +135,8 @@ function frame(now) {
 requestAnimationFrame(frame)
 
 window.addEventListener('visibilitychange', () => {
-  if (document.hidden) pressed.clear()
+  paused = document.hidden
+  if (paused) pressed.clear()
   scheduler.resetTiming()
   lastTime = performance.now()
 })
