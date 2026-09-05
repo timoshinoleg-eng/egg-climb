@@ -277,6 +277,9 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
   if (colliderDesc === null) throw new Error('Pre-baked egg collider mesh is invalid')
   colliderDesc.setDensity(0).setFriction(preset.egg.friction).setRestitution(preset.egg.restitution)
   const eggCollider = world.createCollider(colliderDesc, egg)
+  // Additional properties are otherwise deferred until world.step(), losing
+  // torque impulses sampled for tick zero because inverse inertia is still zero.
+  egg.recomputeMassPropertiesFromColliders()
   const identity = Object.freeze({
     physicsPresetId: preset.id, physicsPresetVersion: preset.version,
     physicsPresetHash: computePhysicsPresetHash(preset),

@@ -1,7 +1,7 @@
 export const PHYSICS_HZ = 60 as const
 export const PHYSICS_DT = 1 / PHYSICS_HZ
 
-export const SIMULATION_VERSION = 'sim-physics-v1' as const
+export const SIMULATION_VERSION = 'sim-physics-v1.1' as const
 export const PHYSICS_PRESET_ID = 'physics-v1' as const
 export const PHYSICS_PRESET_VERSION = 1 as const
 export const PHYSICS_PRESET_HASH = 'ce73c5de' as const

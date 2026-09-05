@@ -85,3 +85,11 @@ test('multiple real supporting pairs choose deepest eligible contact determinist
     } finally { world.free() }
   }
 })
+
+test('tick-zero torque is applied with initialized explicit inertia', async () => {
+  const sim = await createSimulation()
+  try {
+    sim.step({ ...neutral, moveX: 1 })
+    assert.ok(sim.snapshot().angularVelocity.z < -0.1)
+  } finally { sim.free() }
+})

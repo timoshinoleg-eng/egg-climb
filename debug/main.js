@@ -75,11 +75,17 @@ comMarker.renderOrder = 10
 scene.add(comMarker)
 scene.add(bodyGroup)
 
-const contactMarker = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), new THREE.MeshBasicMaterial({ color: 0x22c55e }))
+const contactMarker = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), new THREE.MeshBasicMaterial({ color: 0x22c55e, depthTest: false, depthWrite: false }))
 contactMarker.visible = false
+contactMarker.renderOrder = 11
 scene.add(contactMarker)
 const supportNormalArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(), 0.7, 0x22d3ee, 0.14, 0.08)
 supportNormalArrow.visible = false
+for (const part of [supportNormalArrow.line, supportNormalArrow.cone]) {
+  part.material.depthTest = false
+  part.material.depthWrite = false
+  part.renderOrder = 11
+}
 scene.add(supportNormalArrow)
 
 const pressed = new Set()

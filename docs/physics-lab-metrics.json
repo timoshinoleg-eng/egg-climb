@@ -39,8 +39,8 @@
         "upY": 0.8263227213439295,
         "peakAngular": 3.5219159174780765
       },
-      "controlLeft": -1.1708219051361084,
-      "controlRight": 1.1767717599868774
+      "controlLeft": -1.1811180114746094,
+      "controlRight": 1.187957525253296
     },
     {
       "id": "physics-v1",
@@ -81,8 +81,8 @@
         "upY": 0.4412371542430815,
         "peakAngular": 3.6441283306842425
       },
-      "controlLeft": -1.107348084449768,
-      "controlRight": 1.117523193359375
+      "controlLeft": -1.110975980758667,
+      "controlRight": 1.1276359558105469
     },
     {
       "id": "physics-lab-c",
@@ -123,8 +123,8 @@
         "upY": 0.5093446358970461,
         "peakAngular": 3.8013646192187296
       },
-      "controlLeft": -1.006493091583252,
-      "controlRight": 1.0310438871383667
+      "controlLeft": -1.0160188674926758,
+      "controlRight": 1.0389492511749268
     }
   ],
   "com": [

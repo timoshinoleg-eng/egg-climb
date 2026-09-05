@@ -71,7 +71,7 @@ The reproducible harness `scripts/physics-lab-experiment.mjs` compares three imm
 
 Rise measures body-origin apex relative to launch height over 240 ticks. Recovery means 15 consecutive supported ticks with linear speed below .15 and angular speed below .2 after first landing; a null result means no recovery in the observation window. Exact inverted tip launches can land balanced by symmetry; the separate perturbation experiment measures instability.
 
-Candidate C fails the desired .1 side-over-base rise margin. B recovers from the side launch 34 ticks sooner than A, maintains the reward margins, and remains controllable in both directions (90-tick torque yields X about -1.107 / +1.118). This is a transparent foundation choice, not a claim of final game feel.
+Candidate C fails the desired .1 side-over-base rise margin. B recovers from the side launch 34 ticks sooner than A, maintains the reward margins, and remains controllable in both directions (90-tick torque yields X about -1.111 / +1.128). This is a transparent foundation choice, not a claim of final game feel.
 
 An isolated COM comparison keeps every other parameter fixed: after a 5-degree broad-base perturbation and 180 ticks, COM -.12 gives local-up Y .936, while COM 0 gives -.075. Thus the explicit mass distribution materially changes return behavior. The perturbed tip departs inversion and has peak angular speed 3.644 versus base 1.112.
 
@@ -81,7 +81,7 @@ An isolated 20-degree slope experiment compares normal weights 0, .10, .15, .20,
 
 Replay compatibility is fail-closed on physics preset id/version/hash and egg collider id/version/hash. The worker handshake binds the same identities. The fingerprint authoritative-state slot serializes those identities in addition to the Rapier snapshot.
 
-The previous PR candidate golden was `2f2e18b0`. The current candidate is `ad1821c5`: preset curve identity and the jump latch/contact separation repair intentionally change its envelope. Golden promotion is pending the cross-platform evidence run; no per-platform golden is permitted.
+The previous PR candidate golden was `2f2e18b0`. The current candidate is `ec643eb8`: preset curve identity, jump latch/contact separation repair and simulation version `sim-physics-v1.1` intentionally change its envelope. Golden promotion is pending the cross-platform evidence run; no per-platform golden is permitted.
 
 Playwright Chromium, Firefox, and WebKit remain required before merge. WebKit coverage is useful portability evidence but is not a real iOS WKWebView/device proof; a real-device smoke test remains future work.
 
@@ -96,3 +96,5 @@ Physics Lab intentionally stops before production level/content/visual polish. T
 ## Debug
 
 `/?physics=lab-a&scenario=jump-tip` selects a worker-owned experiment. `lab-b` aliases the selected physics-v1; `lab-c` is the stronger tip-reward candidate. The hull, visible red COM, local axis, support point/normal, contactT, strength, quality, trajectory and apex are debug-only. Diagnostics are sampled worker snapshots and may miss an exact apex under transport batching; scripted measurements are tick-exact.
+
+Mass properties are explicitly recomputed immediately after attaching the zero-density hull. This makes the first tick torque effective instead of silently discarding it before Rapier’s deferred mass update. The tick-zero regression and restored-snapshot mass checks cover this initialization boundary.
