@@ -1,4 +1,7 @@
 import {
+  EGG_COLLIDER_HASH,
+  EGG_COLLIDER_ID,
+  EGG_COLLIDER_VERSION,
   FINGERPRINT_VERSION,
   FOUNDATION_ASSIST_PRESET_ID,
   FOUNDATION_CONTROL_MODE,
@@ -7,7 +10,9 @@ import {
   FOUNDATION_LEVEL_VERSION,
   FOUNDATION_SEED,
   PHYSICS_HZ,
+  PHYSICS_PRESET_HASH,
   PHYSICS_PRESET_ID,
+  PHYSICS_PRESET_VERSION,
   RAPIER_PACKAGE,
   RAPIER_VERSION,
   REPLAY_PROTOCOL_VERSION,
@@ -37,6 +42,11 @@ export interface ReplayHeader {
   readonly rapierVersion: typeof RAPIER_VERSION
   readonly fingerprintVersion: typeof FINGERPRINT_VERSION
   readonly physicsPresetId: typeof PHYSICS_PRESET_ID
+  readonly physicsPresetVersion: typeof PHYSICS_PRESET_VERSION
+  readonly physicsPresetHash: typeof PHYSICS_PRESET_HASH
+  readonly eggColliderId: typeof EGG_COLLIDER_ID
+  readonly eggColliderVersion: typeof EGG_COLLIDER_VERSION
+  readonly eggColliderHash: typeof EGG_COLLIDER_HASH
   readonly tickRate: typeof PHYSICS_HZ
   readonly levelId: string
   readonly levelVersion: number
@@ -54,12 +64,37 @@ export interface Replay {
   readonly clientFingerprint?: string
 }
 
+export interface Vector3Snapshot {
+  readonly x: number
+  readonly y: number
+  readonly z: number
+}
+
+export interface PhysicsDebugSnapshot {
+  readonly grounded: boolean
+  readonly contactT: number | null
+  readonly supportContactLocal: Vector3Snapshot | null
+  readonly supportContactWorld: Vector3Snapshot | null
+  readonly supportNormal: Vector3Snapshot | null
+  readonly contactDistance: number | null
+  readonly jumpStrength: number | null
+  readonly jumpDirection: Vector3Snapshot | null
+}
+
 export interface SimulationSnapshot {
   readonly tick: number
-  readonly position: Readonly<{ x: number; y: number; z: number }>
+  readonly position: Vector3Snapshot
   readonly rotation: Readonly<{ x: number; y: number; z: number; w: number }>
-  readonly linearVelocity: Readonly<{ x: number; y: number; z: number }>
-  readonly angularVelocity: Readonly<{ x: number; y: number; z: number }>
+  readonly linearVelocity: Vector3Snapshot
+  readonly angularVelocity: Vector3Snapshot
+  readonly physics: PhysicsDebugSnapshot
+}
+
+export interface EggInitialState {
+  readonly position: readonly [number, number, number]
+  readonly rotation: readonly [number, number, number, number]
+  readonly linearVelocity: readonly [number, number, number]
+  readonly angularVelocity: readonly [number, number, number]
 }
 
 export function defaultReplayHeader(): ReplayHeader {
@@ -70,6 +105,11 @@ export function defaultReplayHeader(): ReplayHeader {
     rapierVersion: RAPIER_VERSION,
     fingerprintVersion: FINGERPRINT_VERSION,
     physicsPresetId: PHYSICS_PRESET_ID,
+    physicsPresetVersion: PHYSICS_PRESET_VERSION,
+    physicsPresetHash: PHYSICS_PRESET_HASH,
+    eggColliderId: EGG_COLLIDER_ID,
+    eggColliderVersion: EGG_COLLIDER_VERSION,
+    eggColliderHash: EGG_COLLIDER_HASH,
     tickRate: PHYSICS_HZ,
     levelId: FOUNDATION_LEVEL_ID,
     levelVersion: FOUNDATION_LEVEL_VERSION,

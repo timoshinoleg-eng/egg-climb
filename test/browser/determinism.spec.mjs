@@ -30,7 +30,7 @@ test('simulation worker proves runtime identity, golden equivalence, chunking an
   await expect(result).toHaveAttribute('data-queue', 'true')
   await expect(result).toHaveAttribute('data-runtime', 'worker')
   await expect(result).toHaveAttribute('data-rapier-version', '0.20.0')
-  await expect(result).toHaveAttribute('data-protocol-version', '1')
+  await expect(result).toHaveAttribute('data-protocol-version', '2')
   await expect(result).toHaveAttribute('data-double-init', 'true')
   await expect(result).toHaveAttribute('data-empty', 'true')
   console.log(`[worker-fingerprint] ${browserName} ${GOLDEN_REPLAY_FINGERPRINT} tick=240 runtime=worker chunking=true queue=true`)
