@@ -6,6 +6,12 @@ Status: accepted for the Physics Lab foundation.
 
 The authoritative egg is a single pre-baked asymmetric convex mesh. Runtime physics never derives collision geometry from Three/React assets and never generates the hull with trigonometry.
 
+Physics preset identity:
+
+- id: `physics-v1`
+- version: `1`
+- deterministic hash: `600eded0`
+
 Collider identity:
 
 - id: `egg-convex-v1`
