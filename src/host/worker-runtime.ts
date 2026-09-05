@@ -1,3 +1,4 @@
+import { DEFAULT_FEEL, computeFeelPresetHash } from '../sim/feel-presets.js'
 import { immutableSimulationOptions } from '../sim/simulation-core.js'
 import {
   EGG_COLLIDER_HASH,
@@ -21,6 +22,7 @@ import { assertTickInputs } from './validation.js'
 import type { WorkerRequest, WorkerResponse, WorkerRuntimeInfo } from './worker-protocol.js'
 
 const RUNTIME_INFO: WorkerRuntimeInfo = Object.freeze({
+  feelPresetId: DEFAULT_FEEL.id, feelPresetVersion: DEFAULT_FEEL.version, feelPresetHash: computeFeelPresetHash(DEFAULT_FEEL),
   runtime: 'worker',
   workerProtocolVersion: WORKER_PROTOCOL_VERSION,
   simulationVersion: SIMULATION_VERSION,
@@ -94,7 +96,7 @@ export class SimulationWorkerRuntime {
       if (request.type === 'init') {
         if (this.simulation) return this.error(id, 'Simulation worker is already initialized')
         const snapshot = this.createFreshSimulation()
-        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'initialized', snapshot, runtimeInfo: { ...RUNTIME_INFO, physicsPresetId: (this.options.preset ?? PHYSICS_V1).id, physicsPresetVersion: (this.options.preset ?? PHYSICS_V1).version, physicsPresetHash: computePhysicsPresetHash(this.options.preset ?? PHYSICS_V1) } }
+        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'initialized', snapshot, runtimeInfo: { ...RUNTIME_INFO, feelPresetId: (this.options.feel ?? DEFAULT_FEEL).id, feelPresetVersion: (this.options.feel ?? DEFAULT_FEEL).version, feelPresetHash: computeFeelPresetHash(this.options.feel ?? DEFAULT_FEEL), physicsPresetId: (this.options.preset ?? PHYSICS_V1).id, physicsPresetVersion: (this.options.preset ?? PHYSICS_V1).version, physicsPresetHash: computePhysicsPresetHash(this.options.preset ?? PHYSICS_V1) } }
       }
 
       if (!this.simulation || !this.current) return this.error(id, 'Simulation worker is not initialized')

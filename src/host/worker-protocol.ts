@@ -1,3 +1,4 @@
+import { DEFAULT_FEEL, computeFeelPresetHash } from '../sim/feel-presets.js'
 import {
   EGG_COLLIDER_HASH,
   EGG_COLLIDER_ID,
@@ -19,6 +20,9 @@ export interface WorkerRuntimeInfo {
   readonly simulationVersion: typeof SIMULATION_VERSION
   readonly rapierPackage: typeof RAPIER_PACKAGE
   readonly rapierVersion: typeof RAPIER_VERSION
+  readonly feelPresetId: string
+  readonly feelPresetVersion: number
+  readonly feelPresetHash: string
   readonly physicsPresetId: string
   readonly physicsPresetVersion: number
   readonly physicsPresetHash: string
@@ -28,6 +32,7 @@ export interface WorkerRuntimeInfo {
 }
 
 export const EXPECTED_WORKER_RUNTIME_INFO: WorkerRuntimeInfo = Object.freeze({
+  feelPresetId: DEFAULT_FEEL.id, feelPresetVersion: DEFAULT_FEEL.version, feelPresetHash: computeFeelPresetHash(DEFAULT_FEEL),
   runtime: 'worker',
   workerProtocolVersion: WORKER_PROTOCOL_VERSION,
   simulationVersion: SIMULATION_VERSION,

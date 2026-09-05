@@ -1,4 +1,8 @@
-import { PHYSICS_DT } from './config.js'
+import { DEFAULT_FEEL, immutableFeelPreset, computeFeelPresetHash } from './feel-presets.js'
+import type { FeelPreset } from './feel-presets.js'
+import { createFeelState, stepFeel, serializeFeelState, debugFeelState } from './feel-controller.js'
+import type { FeelState, FeelJump } from './feel-controller.js'
+import { SIMULATION_VERSION, RAPIER_PACKAGE, RAPIER_VERSION, PHYSICS_DT } from './config.js'
 import type { EggInitialState, PhysicsDebugSnapshot, SimulationSnapshot, TickInput } from './contracts.js'
 import { EGG_COLLIDER_HASH, EGG_COLLIDER_ID, EGG_COLLIDER_VERSION } from './config.js'
 import { createEggColliderIndices, createEggColliderVertices, EGG_COLLIDER_MAX_Y, EGG_COLLIDER_MIN_Y } from './egg-collider.js'
@@ -19,6 +23,7 @@ export interface Simulation {
 }
 
 export interface SimulationOptions {
+  readonly feel?: FeelPreset
   readonly preset?: PhysicsPreset
   readonly level?: readonly StaticBoxDefinition[]
   readonly initialEgg?: EggInitialState
@@ -27,6 +32,7 @@ export interface SimulationOptions {
 export function immutableSimulationOptions(options: SimulationOptions): SimulationOptions {
   return Object.freeze({
     preset: immutablePhysicsPreset(options.preset ?? PHYSICS_V1),
+    feel: immutableFeelPreset(options.feel ?? DEFAULT_FEEL),
     ...(options.level ? { level: Object.freeze(options.level.map(box => Object.freeze({
       ...box, center: Object.freeze([...box.center] as [number, number, number]),
       halfExtents: Object.freeze([...box.halfExtents] as [number, number, number]),
@@ -219,7 +225,7 @@ function writeAscii(target: number[], value: string): void {
   }
 }
 
-function authoritativeStateBytes(preset: PhysicsPreset, awaitingSeparation: boolean): Uint8Array {
+function authoritativeStateBytes(preset: PhysicsPreset, feel: FeelPreset, state: FeelState): Uint8Array {
   const bytes: number[] = []
   bytes.push(0x50, 0x48, 0x59, 0x53) // PHYS
   writeAscii(bytes, preset.id)
@@ -228,7 +234,12 @@ function authoritativeStateBytes(preset: PhysicsPreset, awaitingSeparation: bool
   writeAscii(bytes, EGG_COLLIDER_ID)
   writeU32(bytes, EGG_COLLIDER_VERSION)
   writeAscii(bytes, EGG_COLLIDER_HASH)
-  bytes.push(awaitingSeparation ? 1 : 0)
+  writeAscii(bytes, feel.id)
+  writeU32(bytes, feel.version)
+  writeAscii(bytes, computeFeelPresetHash(feel))
+  const stateBytes = serializeFeelState(state)
+  writeU32(bytes, stateBytes.length)
+  for (const byte of stateBytes) bytes.push(byte)
   return Uint8Array.from(bytes)
 }
 
@@ -246,6 +257,7 @@ function createStaticBox(RAPIER: RapierApi, world: InstanceType<RapierApi['World
 
 export function createSimulationWithRapier(RAPIER: RapierApi, options: SimulationOptions = {}): Simulation {
   const preset = immutablePhysicsPreset(options.preset ?? PHYSICS_V1)
+  const feel = immutableFeelPreset(options.feel ?? DEFAULT_FEEL)
   const level = options.level ?? FOUNDATION_LEVEL
   const initial = options.initialEgg ?? DEFAULT_EGG_STATE
   const world = new RAPIER.World({ x: 0, y: preset.gravityY, z: 0 })
@@ -272,6 +284,12 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
     .setLinearDamping(preset.egg.linearDamping)
     .setAngularDamping(preset.egg.angularDamping)
     .setCcdEnabled(preset.egg.ccd)
+  if (feel.dimensionMode === '2.5d') {
+    const planarRotation = normalize({ x: qz, y: qw, z: 0 }, { x: 0, y: 1, z: 0 })
+    eggDesc.setRotation({ x: 0, y: 0, z: planarRotation.x, w: planarRotation.y })
+      .setLinvel(lvx, lvy, 0).setAngvel({ x: 0, y: 0, z: avz })
+      .enabledTranslations(true, true, false).enabledRotations(false, false, true)
+  }
   const egg = world.createRigidBody(eggDesc)
   const colliderDesc = RAPIER.ColliderDesc.convexMesh(createEggColliderVertices(), createEggColliderIndices())
   if (colliderDesc === null) throw new Error('Pre-baked egg collider mesh is invalid')
@@ -281,6 +299,8 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
   // torque impulses sampled for tick zero because inverse inertia is still zero.
   egg.recomputeMassPropertiesFromColliders()
   const identity = Object.freeze({
+    simulationVersion: SIMULATION_VERSION, rapierPackage: RAPIER_PACKAGE, rapierVersion: RAPIER_VERSION,
+    feelPresetId: feel.id, feelPresetVersion: feel.version, feelPresetHash: computeFeelPresetHash(feel),
     physicsPresetId: preset.id, physicsPresetVersion: preset.version,
     physicsPresetHash: computePhysicsPresetHash(preset),
     eggColliderId: EGG_COLLIDER_ID, eggColliderVersion: EGG_COLLIDER_VERSION,
@@ -288,24 +308,32 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
   })
 
   let tick = 0
-  let awaitingSeparation = false
+  const feelState = createFeelState()
+  let lastJumpTick = -1
+  let lastJumpSource: FeelJump['source'] | null = null
+  let lastJumpStrength = 0
   return {
     get tick() { return tick },
     step(input) {
       const moveX = clampAxis(input.moveX)
-      const moveZ = clampAxis(input.moveZ)
+      const moveZ = feel.dimensionMode === '2.5d' ? 0 : clampAxis(input.moveZ)
       if (moveX !== 0 || moveZ !== 0) {
         egg.applyTorqueImpulse({ x: moveZ * preset.controls.torqueImpulse, y: 0, z: -moveX * preset.controls.torqueImpulse }, true)
       }
 
       const support = findSupportContact(world, eggCollider, egg, preset)
-      if (support === null) awaitingSeparation = false
-      if (input.jumpDown && support !== null && !awaitingSeparation) {
-        const rotation = egg.rotation()
-        const direction = jumpDirectionForModel(preset.jump.directionModel, support.normal, rotation, preset)
-        const strength = jumpStrengthForContactT(preset, support.contactT)
+      const action = stepFeel(feelState, input, support, feel, tick)
+      if (action.jump !== null) {
+        const direction = jumpDirectionForModel(preset.jump.directionModel, action.jump.normal, egg.rotation(), preset)
+        const strength = jumpStrengthForContactT(preset, action.jump.contactT) * action.jump.scale
         egg.applyImpulse({ x: direction.x * strength, y: direction.y * strength, z: direction.z * strength }, true)
-        awaitingSeparation = true
+        lastJumpTick = tick
+        lastJumpSource = action.jump.source
+        lastJumpStrength = strength
+      }
+      if (action.tipDamping > 0 && action.jump === null) {
+        const av = egg.angvel()
+        egg.applyTorqueImpulse({ x: -av.x * action.tipDamping, y: -av.y * action.tipDamping, z: -av.z * action.tipDamping }, true)
       }
 
       world.step()
@@ -317,6 +345,7 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
       return {
         tick,
         identity,
+        feel: { ...debugFeelState(feelState), lastJumpTick, lastJumpSource, lastJumpStrength },
         position: { x: p.x, y: p.y, z: p.z },
         rotation: { x: r.x, y: r.y, z: r.z, w: r.w },
         linearVelocity: { x: lv.x, y: lv.y, z: lv.z },
@@ -328,7 +357,7 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
     fingerprint() {
       return fingerprintSimulationState({
         tick,
-        authoritativeState: authoritativeStateBytes(preset, awaitingSeparation),
+        authoritativeState: authoritativeStateBytes(preset, feel, feelState),
         physicsSnapshot: world.takeSnapshot(),
       })
     },

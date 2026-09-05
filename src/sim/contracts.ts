@@ -1,3 +1,6 @@
+import type { FeelState, FeelJump } from './feel-controller.js'
+import { DEFAULT_FEEL, computeFeelPresetHash } from './feel-presets.js'
+import type { FeelPreset } from './feel-presets.js'
 import {
   EGG_COLLIDER_HASH,
   EGG_COLLIDER_ID,
@@ -27,6 +30,7 @@ export interface TickInput {
   readonly moveZ: number
   readonly jumpDown: boolean
   readonly jumpUp: boolean
+  readonly jumpCancel?: boolean
 }
 
 export const NEUTRAL_INPUT: TickInput = Object.freeze({ moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false })
@@ -34,6 +38,7 @@ export const NEUTRAL_INPUT: TickInput = Object.freeze({ moveX: 0, moveZ: 0, jump
 export type ReplayInputEvent =
   | { readonly tick: number; readonly seq: number; readonly kind: 'move'; readonly moveX: number; readonly moveZ: number }
   | { readonly tick: number; readonly seq: number; readonly kind: 'jump'; readonly down: boolean }
+  | { readonly tick: number; readonly seq: number; readonly kind: 'jump-cancel' }
 
 export interface ReplayHeader {
   readonly protocolVersion: typeof REPLAY_PROTOCOL_VERSION
@@ -47,6 +52,9 @@ export interface ReplayHeader {
   readonly eggColliderId: typeof EGG_COLLIDER_ID
   readonly eggColliderVersion: typeof EGG_COLLIDER_VERSION
   readonly eggColliderHash: typeof EGG_COLLIDER_HASH
+  readonly feelPresetId: string
+  readonly feelPresetVersion: number
+  readonly feelPresetHash: string
   readonly tickRate: typeof PHYSICS_HZ
   readonly levelId: string
   readonly levelVersion: number
@@ -84,6 +92,12 @@ export interface PhysicsDebugSnapshot {
 export interface SimulationSnapshot {
   readonly tick: number
   readonly identity: Readonly<{
+    simulationVersion: string
+    rapierPackage: string
+    rapierVersion: string
+    feelPresetId: string
+    feelPresetVersion: number
+    feelPresetHash: string
     physicsPresetId: string
     physicsPresetVersion: number
     physicsPresetHash: string
@@ -95,6 +109,7 @@ export interface SimulationSnapshot {
   readonly rotation: Readonly<{ x: number; y: number; z: number; w: number }>
   readonly linearVelocity: Vector3Snapshot
   readonly angularVelocity: Vector3Snapshot
+  readonly feel: Readonly<FeelState> & Readonly<{ lastJumpTick: number; lastJumpSource: FeelJump['source'] | null; lastJumpStrength: number }>
   readonly physics: PhysicsDebugSnapshot
 }
 
@@ -105,7 +120,7 @@ export interface EggInitialState {
   readonly angularVelocity: readonly [number, number, number]
 }
 
-export function defaultReplayHeader(): ReplayHeader {
+export function defaultReplayHeader(feel: FeelPreset = DEFAULT_FEEL): ReplayHeader {
   return {
     protocolVersion: REPLAY_PROTOCOL_VERSION,
     simulationVersion: SIMULATION_VERSION,
@@ -118,12 +133,15 @@ export function defaultReplayHeader(): ReplayHeader {
     eggColliderId: EGG_COLLIDER_ID,
     eggColliderVersion: EGG_COLLIDER_VERSION,
     eggColliderHash: EGG_COLLIDER_HASH,
+    feelPresetId: feel.id,
+    feelPresetVersion: feel.version,
+    feelPresetHash: computeFeelPresetHash(feel),
     tickRate: PHYSICS_HZ,
     levelId: FOUNDATION_LEVEL_ID,
     levelVersion: FOUNDATION_LEVEL_VERSION,
     seed: FOUNDATION_SEED,
-    dimensionMode: FOUNDATION_DIMENSION_MODE,
-    controlMode: FOUNDATION_CONTROL_MODE,
-    assistPresetId: FOUNDATION_ASSIST_PRESET_ID,
+    dimensionMode: feel.dimensionMode,
+    controlMode: feel.controlMode,
+    assistPresetId: feel.bufferTicks || feel.coyoteTicks || feel.tipHoldTicks ? feel.id : 'none',
   }
 }
