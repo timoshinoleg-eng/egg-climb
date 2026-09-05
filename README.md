@@ -31,4 +31,4 @@ The Physics Lab needs a visual viewport before collider/contact tuning. The debu
 npm run debug:serve
 ```
 
-Open `http://127.0.0.1:4173/`. WASD/arrows are sampled by the main thread and advanced through the explicit worker transport at fixed physics ticks. The displayed sphere is intentionally the current foundation fixture; final egg collider/contact/COM work belongs to the next Physics Lab stage.
+Open `http://127.0.0.1:4173/`. WASD/arrows are sampled by the main thread and advanced through the explicit worker transport at fixed physics ticks. Physics Lab renders the actual pre-baked egg hull, COM and support manifold diagnostics. Use `/?physics=lab-b&scenario=jump-tip` to select a worker-owned lab fixture; Space jumps from contact. See [physics decision and experiment metrics](docs/adr/0003-physics-lab.md).

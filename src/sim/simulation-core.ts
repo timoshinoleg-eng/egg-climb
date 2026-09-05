@@ -5,7 +5,7 @@ import { createEggColliderIndices, createEggColliderVertices, EGG_COLLIDER_MAX_Y
 import { fingerprintSimulationState } from './fingerprint.js'
 import { FOUNDATION_LEVEL } from './level.js'
 import type { StaticBoxDefinition } from './level.js'
-import { computePhysicsPresetHash, PHYSICS_V1 } from './physics-presets.js'
+import { computePhysicsPresetHash, immutablePhysicsPreset, PHYSICS_V1 } from './physics-presets.js'
 import type { JumpDirectionModel, PhysicsPreset } from './physics-presets.js'
 import type { RapierApi } from './rapier.js'
 
@@ -22,6 +22,23 @@ export interface SimulationOptions {
   readonly preset?: PhysicsPreset
   readonly level?: readonly StaticBoxDefinition[]
   readonly initialEgg?: EggInitialState
+}
+
+export function immutableSimulationOptions(options: SimulationOptions): SimulationOptions {
+  return Object.freeze({
+    preset: immutablePhysicsPreset(options.preset ?? PHYSICS_V1),
+    ...(options.level ? { level: Object.freeze(options.level.map(box => Object.freeze({
+      ...box, center: Object.freeze([...box.center] as [number, number, number]),
+      halfExtents: Object.freeze([...box.halfExtents] as [number, number, number]),
+      ...(box.rotation ? { rotation: Object.freeze([...box.rotation] as [number, number, number, number]) } : {}),
+    }))) } : {}),
+    ...(options.initialEgg ? { initialEgg: Object.freeze({
+      position: Object.freeze([...options.initialEgg.position] as [number, number, number]),
+      rotation: Object.freeze([...options.initialEgg.rotation] as [number, number, number, number]),
+      linearVelocity: Object.freeze([...options.initialEgg.linearVelocity] as [number, number, number]),
+      angularVelocity: Object.freeze([...options.initialEgg.angularVelocity] as [number, number, number]),
+    }) } : {}),
+  })
 }
 
 type Vector3 = { x: number; y: number; z: number }
@@ -87,7 +104,7 @@ export function contactTFromLocalPointY(localY: number): number {
 
 export function jumpStrengthForContactT(preset: PhysicsPreset, contactT: number): number {
   const t = clamp01(contactT)
-  const eased = t * t * (3 - 2 * t)
+  const eased = preset.jump.curve === 'NEAR_LINEAR' ? t : preset.jump.curve === 'TIP_REWARD' ? t * t : t * t * (3 - 2 * t)
   return preset.jump.baseImpulse + (preset.jump.tipImpulse - preset.jump.baseImpulse) * eased
 }
 
@@ -111,7 +128,7 @@ function isBetterSupport(candidate: SupportContact, current: SupportContact | nu
   return candidate.localPoint.z < current.localPoint.z
 }
 
-function findSupportContact(
+export function findSupportContact(
   world: InstanceType<RapierApi['World']>,
   eggCollider: ReturnType<InstanceType<RapierApi['World']>['createCollider']>,
   eggBody: ReturnType<InstanceType<RapierApi['World']>['createRigidBody']>,
@@ -135,11 +152,20 @@ function findSupportContact(
         const distance = manifold.contactDist(index)
         if (distance > preset.support.maxContactDistance) continue
         const pointRaw = flipped ? manifold.localContactPoint2(index) : manifold.localContactPoint1(index)
-        if (pointRaw === null) continue
+        const otherPointRaw = flipped ? manifold.localContactPoint1(index) : manifold.localContactPoint2(index)
+        if (pointRaw === null || otherPointRaw === null) continue
         const localPoint = copyVector(pointRaw)
+        const eggPointWorld = worldPoint(position, rotation, localPoint)
+        const otherPointWorld = worldPoint(otherCollider.translation(), otherCollider.rotation(), otherPointRaw)
+        // Manifolds describe the pre-solver poses. Reproject their actual contact
+        // points to reject cached support after this tick has separated the bodies.
+        const separation = (eggPointWorld.x - otherPointWorld.x) * supportNormal.x
+          + (eggPointWorld.y - otherPointWorld.y) * supportNormal.y
+          + (eggPointWorld.z - otherPointWorld.z) * supportNormal.z
+        if (separation > preset.support.maxContactDistance) continue
         const candidate: SupportContact = {
           localPoint,
-          worldPoint: worldPoint(position, rotation, localPoint),
+          worldPoint: eggPointWorld,
           normal: supportNormal,
           distance,
           upDot,
@@ -193,7 +219,7 @@ function writeAscii(target: number[], value: string): void {
   }
 }
 
-function authoritativeStateBytes(preset: PhysicsPreset): Uint8Array {
+function authoritativeStateBytes(preset: PhysicsPreset, awaitingSeparation: boolean): Uint8Array {
   const bytes: number[] = []
   bytes.push(0x50, 0x48, 0x59, 0x53) // PHYS
   writeAscii(bytes, preset.id)
@@ -202,6 +228,7 @@ function authoritativeStateBytes(preset: PhysicsPreset): Uint8Array {
   writeAscii(bytes, EGG_COLLIDER_ID)
   writeU32(bytes, EGG_COLLIDER_VERSION)
   writeAscii(bytes, EGG_COLLIDER_HASH)
+  bytes.push(awaitingSeparation ? 1 : 0)
   return Uint8Array.from(bytes)
 }
 
@@ -218,7 +245,7 @@ function createStaticBox(RAPIER: RapierApi, world: InstanceType<RapierApi['World
 }
 
 export function createSimulationWithRapier(RAPIER: RapierApi, options: SimulationOptions = {}): Simulation {
-  const preset = options.preset ?? PHYSICS_V1
+  const preset = immutablePhysicsPreset(options.preset ?? PHYSICS_V1)
   const level = options.level ?? FOUNDATION_LEVEL
   const initial = options.initialEgg ?? DEFAULT_EGG_STATE
   const world = new RAPIER.World({ x: 0, y: preset.gravityY, z: 0 })
@@ -250,8 +277,18 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
   if (colliderDesc === null) throw new Error('Pre-baked egg collider mesh is invalid')
   colliderDesc.setDensity(0).setFriction(preset.egg.friction).setRestitution(preset.egg.restitution)
   const eggCollider = world.createCollider(colliderDesc, egg)
+  // Additional properties are otherwise deferred until world.step(), losing
+  // torque impulses sampled for tick zero because inverse inertia is still zero.
+  egg.recomputeMassPropertiesFromColliders()
+  const identity = Object.freeze({
+    physicsPresetId: preset.id, physicsPresetVersion: preset.version,
+    physicsPresetHash: computePhysicsPresetHash(preset),
+    eggColliderId: EGG_COLLIDER_ID, eggColliderVersion: EGG_COLLIDER_VERSION,
+    eggColliderHash: EGG_COLLIDER_HASH,
+  })
 
   let tick = 0
+  let awaitingSeparation = false
   return {
     get tick() { return tick },
     step(input) {
@@ -262,11 +299,13 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
       }
 
       const support = findSupportContact(world, eggCollider, egg, preset)
-      if (input.jumpDown && support !== null) {
+      if (support === null) awaitingSeparation = false
+      if (input.jumpDown && support !== null && !awaitingSeparation) {
         const rotation = egg.rotation()
         const direction = jumpDirectionForModel(preset.jump.directionModel, support.normal, rotation, preset)
         const strength = jumpStrengthForContactT(preset, support.contactT)
         egg.applyImpulse({ x: direction.x * strength, y: direction.y * strength, z: direction.z * strength }, true)
+        awaitingSeparation = true
       }
 
       world.step()
@@ -277,6 +316,7 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
       const support = findSupportContact(world, eggCollider, egg, preset)
       return {
         tick,
+        identity,
         position: { x: p.x, y: p.y, z: p.z },
         rotation: { x: r.x, y: r.y, z: r.z, w: r.w },
         linearVelocity: { x: lv.x, y: lv.y, z: lv.z },
@@ -288,7 +328,7 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
     fingerprint() {
       return fingerprintSimulationState({
         tick,
-        authoritativeState: authoritativeStateBytes(preset),
+        authoritativeState: authoritativeStateBytes(preset, awaitingSeparation),
         physicsSnapshot: world.takeSnapshot(),
       })
     },

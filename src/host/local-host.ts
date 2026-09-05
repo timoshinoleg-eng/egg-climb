@@ -1,5 +1,7 @@
+import { immutableSimulationOptions } from '../sim/simulation-core.js'
 import type { TickInput } from '../sim/contracts.js'
 import { createSimulation } from '../sim/simulation.js'
+import type { SimulationOptions } from '../sim/simulation-core.js'
 import type { Simulation } from '../sim/simulation.js'
 import type { SimulationFrame, SimulationHost } from './contracts.js'
 import { assertTickInputs } from './validation.js'
@@ -8,10 +10,14 @@ export class LocalSimulationHost implements SimulationHost {
   private simulation: Simulation | undefined
   private closed = false
 
+  private readonly options: SimulationOptions
+
+  constructor(options: SimulationOptions = {}) { this.options = immutableSimulationOptions(options) }
+
   async init() {
     if (this.closed) throw new Error('Simulation host is closed')
     if (this.simulation) throw new Error('Simulation host already initialized')
-    this.simulation = await createSimulation()
+    this.simulation = await createSimulation(this.options)
     return this.simulation.snapshot()
   }
 
@@ -39,7 +45,7 @@ export class LocalSimulationHost implements SimulationHost {
     if (this.closed) throw new Error('Simulation host is closed')
     if (!this.simulation) throw new Error('Simulation host is not initialized')
     this.simulation.free()
-    this.simulation = await createSimulation()
+    this.simulation = await createSimulation(this.options)
     return this.simulation.snapshot()
   }
 

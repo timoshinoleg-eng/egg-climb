@@ -10,6 +10,8 @@ import {
   SIMULATION_VERSION,
   WORKER_PROTOCOL_VERSION,
 } from '../sim/config.js'
+import { computePhysicsPresetHash, immutablePhysicsPreset, PHYSICS_V1 } from '../sim/physics-presets.js'
+import type { PhysicsPreset } from '../sim/physics-presets.js'
 import type { SimulationSnapshot, TickInput } from '../sim/contracts.js'
 import type { SimulationFrame, SimulationHost } from './contracts.js'
 import { assertTickInputs } from './validation.js'
@@ -31,7 +33,10 @@ export class WorkerSimulationHost implements SimulationHost {
   private initialized = false
   private runtimeInfoValue: WorkerRuntimeInfo | undefined
 
-  constructor(url: string | URL) {
+  private readonly expectedPreset: PhysicsPreset
+
+  constructor(url: string | URL, expectedPreset: PhysicsPreset = PHYSICS_V1) {
+    this.expectedPreset = immutablePhysicsPreset(expectedPreset)
     this.worker = new Worker(url, { type: 'module', name: 'egg-climb-simulation' })
     this.worker.addEventListener('message', (event: MessageEvent<WorkerResponse>) => {
       const response = event.data
@@ -106,9 +111,9 @@ export class WorkerSimulationHost implements SimulationHost {
       info.simulationVersion !== SIMULATION_VERSION ||
       info.rapierPackage !== RAPIER_PACKAGE ||
       info.rapierVersion !== RAPIER_VERSION ||
-      info.physicsPresetId !== PHYSICS_PRESET_ID ||
-      info.physicsPresetVersion !== PHYSICS_PRESET_VERSION ||
-      info.physicsPresetHash !== PHYSICS_PRESET_HASH ||
+      info.physicsPresetId !== this.expectedPreset.id ||
+      info.physicsPresetVersion !== this.expectedPreset.version ||
+      info.physicsPresetHash !== computePhysicsPresetHash(this.expectedPreset) ||
       info.eggColliderId !== EGG_COLLIDER_ID ||
       info.eggColliderVersion !== EGG_COLLIDER_VERSION ||
       info.eggColliderHash !== EGG_COLLIDER_HASH

@@ -1,19 +1,24 @@
 import * as THREE from 'three'
 import { FixedTickInputScheduler } from '../dist/host/fixed-tick-scheduler.js'
 import { WorkerSimulationHost } from '../dist/host/worker-client.js'
-import {
-  EGG_COLLIDER_INDEX_DATA,
-  EGG_COLLIDER_VERTEX_DATA,
-  PHYSICS_V1,
-} from '../dist/sim/index.js'
+import { EGG_COLLIDER_INDEX_DATA, EGG_COLLIDER_VERTEX_DATA } from '../dist/sim/egg-collider.js'
+import { PHYSICS_LAB_PRESETS, PHYSICS_V1 } from '../dist/sim/physics-presets.js'
+import { physicsLabScenario } from '../dist/sim/physics-lab-fixtures.js'
 import { NEUTRAL_INPUT } from '../dist/sim/contracts.js'
 import { FOUNDATION_LEVEL } from '../dist/sim/level.js'
 import { interpolateSnapshots } from '../dist/render/interpolate.js'
 
+const params = new URLSearchParams(location.search)
+const scenario = params.has('scenario') ? physicsLabScenario(params.get('scenario')) : null
 const canvas = document.querySelector('#viewport')
 const status = document.querySelector('#status')
 const telemetry = document.querySelector('#telemetry')
 const unsupported = document.querySelector('#unsupported')
+const query = new URL(window.location.href).searchParams
+const physicsKey = query.get('physics') ?? 'physics-v1'
+const scenarioKey = query.get('scenario') ?? 'default'
+const expectedPreset = physicsKey === 'physics-v1' ? PHYSICS_V1 : PHYSICS_LAB_PRESETS[physicsKey]
+if (!expectedPreset) throw new Error(`Unknown Physics Lab preset: ${physicsKey}`)
 
 const context = canvas.getContext('webgl2', { antialias: true, alpha: false, powerPreference: 'high-performance' })
 if (!context) {
@@ -39,7 +44,7 @@ scene.add(new THREE.GridHelper(12, 24, 0x475569, 0x1f2937))
 scene.add(new THREE.AxesHelper(1.5))
 
 const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9, metalness: 0 })
-for (const box of FOUNDATION_LEVEL) {
+for (const box of scenario?.level ?? FOUNDATION_LEVEL) {
   const [hx, hy, hz] = box.halfExtents
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), platformMaterial)
   mesh.position.set(...box.center)
@@ -59,16 +64,28 @@ const bodyMesh = new THREE.Mesh(
 bodyGroup.add(bodyMesh)
 const tipMarker = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 0.95, 0xf59e0b, 0.18, 0.1)
 bodyGroup.add(tipMarker)
-const comMarker = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 }))
-comMarker.position.set(0, PHYSICS_V1.egg.centerOfMassY, 0)
-bodyGroup.add(comMarker)
+// Keep the COM marker outside the egg hierarchy and disable depth testing: its
+// purpose is to expose the authoritative mass property even when it is inside
+// the rendered hull.
+const comMarker = new THREE.Mesh(
+  new THREE.SphereGeometry(0.075, 12, 8),
+  new THREE.MeshBasicMaterial({ color: 0xef4444, depthTest: false, depthWrite: false }),
+)
+comMarker.renderOrder = 10
+scene.add(comMarker)
 scene.add(bodyGroup)
 
-const contactMarker = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), new THREE.MeshBasicMaterial({ color: 0x22c55e }))
+const contactMarker = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), new THREE.MeshBasicMaterial({ color: 0x22c55e, depthTest: false, depthWrite: false }))
 contactMarker.visible = false
+contactMarker.renderOrder = 11
 scene.add(contactMarker)
 const supportNormalArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(), 0.7, 0x22d3ee, 0.14, 0.08)
 supportNormalArrow.visible = false
+for (const part of [supportNormalArrow.line, supportNormalArrow.cone]) {
+  part.material.depthTest = false
+  part.material.depthWrite = false
+  part.renderOrder = 11
+}
 scene.add(supportNormalArrow)
 
 const pressed = new Set()
@@ -118,7 +135,10 @@ function resize() {
 window.addEventListener('resize', resize)
 resize()
 
-const simulation = new WorkerSimulationHost(new URL('./sim-worker.js', import.meta.url))
+const workerUrl = new URL('./sim-worker.js', import.meta.url)
+workerUrl.searchParams.set('physics', physicsKey)
+if (scenarioKey !== 'default') workerUrl.searchParams.set('scenario', scenarioKey)
+const simulation = new WorkerSimulationHost(workerUrl, expectedPreset)
 let previous = await simulation.init()
 let current = previous
 const scheduler = new FixedTickInputScheduler()
@@ -127,7 +147,14 @@ let telemetryTimer = 0
 let advancePending = false
 let lastStepped = 0
 let paused = document.hidden
-status.textContent = 'running — physics-v1 in worker · arrows/WASD torque · Space jump'
+status.textContent = `running — ${expectedPreset.id} · ${scenarioKey} · worker physics · arrows/WASD torque · Space jump`
+
+let apex = current.position.y
+let launchY = current.position.y
+let wasGrounded = current.physics.grounded
+const trail = []
+const trailGeometry = new THREE.BufferGeometry()
+scene.add(new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({ color: 0xa78bfa })))
 
 function dispatchNextBatch() {
   if (advancePending || scheduler.pendingCount === 0) return
@@ -138,6 +165,12 @@ function dispatchNextBatch() {
     previous = result.previous
     current = result.current
     lastStepped = result.stepped
+    if (wasGrounded && !current.physics.grounded) { launchY = previous.position.y; apex = current.position.y; trail.length = 0 }
+    wasGrounded = current.physics.grounded
+    apex = Math.max(apex, current.position.y)
+    trail.push(new THREE.Vector3(current.position.x, current.position.y, current.position.z))
+    if (trail.length > 240) trail.shift()
+    trailGeometry.setFromPoints(trail)
   }).catch((error) => {
     status.textContent = `worker error: ${error instanceof Error ? error.message : String(error)}`
   }).finally(() => {
@@ -174,6 +207,8 @@ function frame(now) {
   const transform = interpolateSnapshots(previous, current, alpha)
   bodyGroup.position.set(transform.position.x, transform.position.y, transform.position.z)
   bodyGroup.quaternion.set(transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w)
+  comMarker.position.set(0, expectedPreset.egg.centerOfMassY, 0)
+  comMarker.position.applyQuaternion(bodyGroup.quaternion).add(bodyGroup.position)
   updateContactDebug()
 
   const follow = 1 - Math.exp(-7 * Math.min(Math.max(frameDelta, 0), 0.1))
@@ -187,7 +222,7 @@ function frame(now) {
     const p = current.physics
     const contactT = p.contactT === null ? '—' : p.contactT.toFixed(3)
     const strength = p.jumpStrength === null ? '—' : p.jumpStrength.toFixed(2)
-    telemetry.textContent = `tick ${current.tick} · grounded ${p.grounded} · contactT ${contactT} · jump ${strength} · pos ${current.position.x.toFixed(2)}, ${current.position.y.toFixed(2)}, ${current.position.z.toFixed(2)} · vel ${current.linearVelocity.x.toFixed(2)}, ${current.linearVelocity.y.toFixed(2)}, ${current.linearVelocity.z.toFixed(2)} · worker ${lastStepped} · queued ${scheduler.pendingCount}`
+    telemetry.textContent = `tick ${current.tick} · grounded ${p.grounded} · contactT ${contactT} · jump ${strength} · pos ${current.position.x.toFixed(2)}, ${current.position.y.toFixed(2)}, ${current.position.z.toFixed(2)} · vel ${current.linearVelocity.x.toFixed(2)}, ${current.linearVelocity.y.toFixed(2)}, ${current.linearVelocity.z.toFixed(2)} · COM Y ${expectedPreset.egg.centerOfMassY} · apex ${apex.toFixed(3)} / rise ${(apex - launchY).toFixed(3)} · quality ${p.contactT === null ? "AIR" : p.contactT > 0.85 ? "PERFECT" : p.contactT > 0.65 ? "GOOD" : p.contactT > 0.25 ? "SIDE" : "BASE"} · worker ${lastStepped} · queued ${scheduler.pendingCount}`
   }
 
   renderer.render(scene, camera)

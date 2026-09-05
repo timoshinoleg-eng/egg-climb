@@ -1,3 +1,4 @@
+import { immutableSimulationOptions } from '../sim/simulation-core.js'
 import {
   EGG_COLLIDER_HASH,
   EGG_COLLIDER_ID,
@@ -13,6 +14,8 @@ import {
 import type { SimulationSnapshot, TickInput } from '../sim/contracts.js'
 import type { RapierApi } from '../sim/rapier.js'
 import { createSimulationWithRapier } from '../sim/simulation-core.js'
+import { computePhysicsPresetHash, PHYSICS_V1 } from '../sim/physics-presets.js'
+import type { SimulationOptions } from '../sim/simulation-core.js'
 import type { Simulation } from '../sim/simulation-core.js'
 import { assertTickInputs } from './validation.js'
 import type { WorkerRequest, WorkerResponse, WorkerRuntimeInfo } from './worker-protocol.js'
@@ -42,7 +45,9 @@ export class SimulationWorkerRuntime {
   private closed = false
   private requestQueue: Promise<void> = Promise.resolve()
 
-  constructor(private readonly RAPIER: RapierApi) {}
+  private readonly options: SimulationOptions
+
+  constructor(private readonly RAPIER: RapierApi, options: SimulationOptions = {}) { this.options = immutableSimulationOptions(options) }
 
   enqueue(rawRequest: unknown): Promise<WorkerResponse> {
     let resolveResponse: (response: WorkerResponse) => void = () => undefined
@@ -58,7 +63,7 @@ export class SimulationWorkerRuntime {
 
   private createFreshSimulation(): SimulationSnapshot {
     this.simulation?.free()
-    this.simulation = createSimulationWithRapier(this.RAPIER)
+    this.simulation = createSimulationWithRapier(this.RAPIER, this.options)
     const snapshot = this.simulation.snapshot()
     this.previous = snapshot
     this.current = snapshot
@@ -89,7 +94,7 @@ export class SimulationWorkerRuntime {
       if (request.type === 'init') {
         if (this.simulation) return this.error(id, 'Simulation worker is already initialized')
         const snapshot = this.createFreshSimulation()
-        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'initialized', snapshot, runtimeInfo: RUNTIME_INFO }
+        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'initialized', snapshot, runtimeInfo: { ...RUNTIME_INFO, physicsPresetId: (this.options.preset ?? PHYSICS_V1).id, physicsPresetVersion: (this.options.preset ?? PHYSICS_V1).version, physicsPresetHash: computePhysicsPresetHash(this.options.preset ?? PHYSICS_V1) } }
       }
 
       if (!this.simulation || !this.current) return this.error(id, 'Simulation worker is not initialized')
