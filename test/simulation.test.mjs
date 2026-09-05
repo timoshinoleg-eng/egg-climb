@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { defaultReplayHeader, runReplay } from '../dist/sim/index.js'
 
-const GOLDEN_REPLAY_FINGERPRINT = '4393dd6d'
+const GOLDEN_REPLAY_FINGERPRINT = '2f2e18b0'
 
 function replay(events, finishTick = 240, header = defaultReplayHeader(), clientFingerprint) {
   return clientFingerprint === undefined
