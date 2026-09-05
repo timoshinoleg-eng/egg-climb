@@ -125,6 +125,7 @@ function findSupportContact(
     world.contactPair(eggCollider, otherCollider, (manifold, flipped) => {
       if (manifold.numContacts() <= 0) return
       const localNormalRaw = flipped ? manifold.localNormal2() : manifold.localNormal1()
+      if (localNormalRaw === null) return
       const outwardWorld = normalize(rotateVector(rotation, localNormalRaw), { x: 0, y: -1, z: 0 })
       const supportNormal = { x: -outwardWorld.x, y: -outwardWorld.y, z: -outwardWorld.z }
       const upDot = supportNormal.y
@@ -134,6 +135,7 @@ function findSupportContact(
         const distance = manifold.contactDist(index)
         if (distance > preset.support.maxContactDistance) continue
         const pointRaw = flipped ? manifold.localContactPoint2(index) : manifold.localContactPoint1(index)
+        if (pointRaw === null) continue
         const localPoint = copyVector(pointRaw)
         const candidate: SupportContact = {
           localPoint,
@@ -245,9 +247,8 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
     .setCcdEnabled(preset.egg.ccd)
   const egg = world.createRigidBody(eggDesc)
   const colliderDesc = RAPIER.ColliderDesc.convexMesh(createEggColliderVertices(), createEggColliderIndices())
-    .setDensity(0)
-    .setFriction(preset.egg.friction)
-    .setRestitution(preset.egg.restitution)
+  if (colliderDesc === null) throw new Error('Pre-baked egg collider mesh is invalid')
+  colliderDesc.setDensity(0).setFriction(preset.egg.friction).setRestitution(preset.egg.restitution)
   const eggCollider = world.createCollider(colliderDesc, egg)
 
   let tick = 0
