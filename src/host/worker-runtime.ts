@@ -1,4 +1,10 @@
 import {
+  EGG_COLLIDER_HASH,
+  EGG_COLLIDER_ID,
+  EGG_COLLIDER_VERSION,
+  PHYSICS_PRESET_HASH,
+  PHYSICS_PRESET_ID,
+  PHYSICS_PRESET_VERSION,
   RAPIER_PACKAGE,
   RAPIER_VERSION,
   SIMULATION_VERSION,
@@ -17,6 +23,12 @@ const RUNTIME_INFO: WorkerRuntimeInfo = Object.freeze({
   simulationVersion: SIMULATION_VERSION,
   rapierPackage: RAPIER_PACKAGE,
   rapierVersion: RAPIER_VERSION,
+  physicsPresetId: PHYSICS_PRESET_ID,
+  physicsPresetVersion: PHYSICS_PRESET_VERSION,
+  physicsPresetHash: PHYSICS_PRESET_HASH,
+  eggColliderId: EGG_COLLIDER_ID,
+  eggColliderVersion: EGG_COLLIDER_VERSION,
+  eggColliderHash: EGG_COLLIDER_HASH,
 })
 
 function isRecord(value: unknown): value is Record<string, unknown> {
