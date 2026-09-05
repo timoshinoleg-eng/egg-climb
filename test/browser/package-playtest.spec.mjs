@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs'
-import { readFile, stat } from 'node:fs/promises'
+import { stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { extname, join, normalize, relative } from 'node:path'
 import { packagePlaytest } from '../../scripts/package-playtest.mjs'
@@ -12,6 +12,7 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
   const mime = {
     '.html': 'text/html; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8',
+    '.mjs': 'text/javascript; charset=utf-8',
     '.css': 'text/css; charset=utf-8',
     '.wasm': 'application/wasm',
     '.json': 'application/json; charset=utf-8',
@@ -38,13 +39,14 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
   const missing = []
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
+  page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`) })
   page.on('response', response => { if (response.url().includes(`/egg-climb/`) && response.status() >= 400) missing.push(`${response.status()} ${response.url()}`) })
   try {
     await page.route('https://st.max.ru/js/max-web-app.js', route => route.fulfill({ contentType: 'text/javascript', body: 'window.WebApp={platform:"android"}' }))
     await page.goto(`http://127.0.0.1:${port}/egg-climb/?max=1&feel=2d-hold-assist&scenario=jump-base`)
     await expect(page).toHaveURL(/\/egg-climb\/debug\/index\.html\?max=1&feel=2d-hold-assist&scenario=jump-base/)
     await expect(page.locator('#maxToolbar')).toHaveAttribute('data-platform', 'android')
-    await expect(page.locator('#status')).toContainText('running')
+    try { await expect(page.locator('#status')).toContainText('running') } catch (error) { throw new Error(`${error.message}\n${errors.join('\n')}`) }
     const jump = page.getByRole('button', { name: 'JUMP', exact: true })
     const box = await jump.boundingBox()
     expect(box).toBeTruthy()
