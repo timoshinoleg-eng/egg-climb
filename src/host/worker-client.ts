@@ -1,4 +1,10 @@
 import {
+  EGG_COLLIDER_HASH,
+  EGG_COLLIDER_ID,
+  EGG_COLLIDER_VERSION,
+  PHYSICS_PRESET_HASH,
+  PHYSICS_PRESET_ID,
+  PHYSICS_PRESET_VERSION,
   RAPIER_PACKAGE,
   RAPIER_VERSION,
   SIMULATION_VERSION,
@@ -99,7 +105,13 @@ export class WorkerSimulationHost implements SimulationHost {
       info.workerProtocolVersion !== WORKER_PROTOCOL_VERSION ||
       info.simulationVersion !== SIMULATION_VERSION ||
       info.rapierPackage !== RAPIER_PACKAGE ||
-      info.rapierVersion !== RAPIER_VERSION
+      info.rapierVersion !== RAPIER_VERSION ||
+      info.physicsPresetId !== PHYSICS_PRESET_ID ||
+      info.physicsPresetVersion !== PHYSICS_PRESET_VERSION ||
+      info.physicsPresetHash !== PHYSICS_PRESET_HASH ||
+      info.eggColliderId !== EGG_COLLIDER_ID ||
+      info.eggColliderVersion !== EGG_COLLIDER_VERSION ||
+      info.eggColliderHash !== EGG_COLLIDER_HASH
     ) {
       this.fail(new Error('Simulation worker runtime handshake mismatch'))
       throw new Error('Simulation worker runtime handshake mismatch')
