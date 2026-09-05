@@ -1,4 +1,7 @@
 import {
+  EGG_COLLIDER_HASH,
+  EGG_COLLIDER_ID,
+  EGG_COLLIDER_VERSION,
   FINGERPRINT_VERSION,
   FOUNDATION_ASSIST_PRESET_ID,
   FOUNDATION_CONTROL_MODE,
@@ -7,7 +10,9 @@ import {
   FOUNDATION_LEVEL_VERSION,
   FOUNDATION_SEED,
   PHYSICS_HZ,
+  PHYSICS_PRESET_HASH,
   PHYSICS_PRESET_ID,
+  PHYSICS_PRESET_VERSION,
   RAPIER_PACKAGE,
   RAPIER_VERSION,
   REPLAY_PROTOCOL_VERSION,
@@ -28,7 +33,16 @@ function assertReplay(replay: Replay): void {
   if (header.simulationVersion !== SIMULATION_VERSION) throw new Error('Simulation version mismatch')
   if (header.rapierPackage !== RAPIER_PACKAGE || header.rapierVersion !== RAPIER_VERSION) throw new Error('Rapier version mismatch')
   if (header.fingerprintVersion !== FINGERPRINT_VERSION) throw new Error('Fingerprint version mismatch')
-  if (header.physicsPresetId !== PHYSICS_PRESET_ID) throw new Error('Physics preset mismatch')
+  if (
+    header.physicsPresetId !== PHYSICS_PRESET_ID ||
+    header.physicsPresetVersion !== PHYSICS_PRESET_VERSION ||
+    header.physicsPresetHash !== PHYSICS_PRESET_HASH
+  ) throw new Error('Physics preset mismatch')
+  if (
+    header.eggColliderId !== EGG_COLLIDER_ID ||
+    header.eggColliderVersion !== EGG_COLLIDER_VERSION ||
+    header.eggColliderHash !== EGG_COLLIDER_HASH
+  ) throw new Error('Egg collider mismatch')
   if (header.tickRate !== PHYSICS_HZ) throw new Error('Tick rate mismatch')
   if (header.levelId !== FOUNDATION_LEVEL_ID || header.levelVersion !== FOUNDATION_LEVEL_VERSION) throw new Error('Level version mismatch')
   if (header.seed !== FOUNDATION_SEED) throw new Error('Unsupported foundation seed')

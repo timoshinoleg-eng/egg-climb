@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { SimulationWorkerRuntime } from '../dist/host/index.js'
-import { WORKER_PROTOCOL_VERSION } from '../dist/sim/index.js'
+import {
+  EGG_COLLIDER_HASH,
+  EGG_COLLIDER_ID,
+  PHYSICS_PRESET_HASH,
+  PHYSICS_PRESET_ID,
+  WORKER_PROTOCOL_VERSION,
+} from '../dist/sim/index.js'
 import { initPhysics, RAPIER } from '../dist/sim/rapier.js'
 
 const NEUTRAL = Object.freeze({ moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false })
@@ -13,6 +19,10 @@ test('typed worker runtime is fail-closed and preserves queued ordering after co
   const init = await runtime.enqueue(request(1, { type: 'init' }))
   assert.equal(init.type, 'initialized')
   assert.equal(init.runtimeInfo.runtime, 'worker')
+  assert.equal(init.runtimeInfo.physicsPresetId, PHYSICS_PRESET_ID)
+  assert.equal(init.runtimeInfo.physicsPresetHash, PHYSICS_PRESET_HASH)
+  assert.equal(init.runtimeInfo.eggColliderId, EGG_COLLIDER_ID)
+  assert.equal(init.runtimeInfo.eggColliderHash, EGG_COLLIDER_HASH)
   assert.equal(init.snapshot.tick, 0)
 
   assert.equal((await runtime.enqueue(request(2, { type: 'init' }))).type, 'error')

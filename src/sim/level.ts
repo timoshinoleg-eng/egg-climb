@@ -3,6 +3,7 @@ export interface StaticBoxDefinition {
   readonly center: readonly [number, number, number]
   readonly halfExtents: readonly [number, number, number]
   readonly friction: number
+  readonly rotation?: readonly [number, number, number, number]
 }
 
 /** Foundation-only ribbon. Committed literals; bodies are created in this exact order. */

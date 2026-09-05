@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-const GOLDEN_REPLAY_FINGERPRINT = '4393dd6d'
+const GOLDEN_REPLAY_FINGERPRINT = '2f2e18b0'
 
 function attachDiagnostics(page, browserName) {
   page.on('console', message => console.log(`[browser-console:${browserName}] ${message.type()} ${message.text()}`))
@@ -30,8 +30,12 @@ test('simulation worker proves runtime identity, golden equivalence, chunking an
   await expect(result).toHaveAttribute('data-queue', 'true')
   await expect(result).toHaveAttribute('data-runtime', 'worker')
   await expect(result).toHaveAttribute('data-rapier-version', '0.20.0')
-  await expect(result).toHaveAttribute('data-protocol-version', '1')
+  await expect(result).toHaveAttribute('data-protocol-version', '2')
+  await expect(result).toHaveAttribute('data-physics-preset-id', 'physics-v1')
+  await expect(result).toHaveAttribute('data-physics-preset-hash', '600eded0')
+  await expect(result).toHaveAttribute('data-egg-collider-id', 'egg-convex-v1')
+  await expect(result).toHaveAttribute('data-egg-collider-hash', 'c7ac9e44')
   await expect(result).toHaveAttribute('data-double-init', 'true')
   await expect(result).toHaveAttribute('data-empty', 'true')
-  console.log(`[worker-fingerprint] ${browserName} ${GOLDEN_REPLAY_FINGERPRINT} tick=240 runtime=worker chunking=true queue=true`)
+  console.log(`[worker-fingerprint] ${browserName} ${GOLDEN_REPLAY_FINGERPRINT} tick=240 runtime=worker chunking=true queue=true physics=physics-v1 collider=egg-convex-v1`)
 })

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { defaultReplayHeader, runReplay } from '../dist/sim/index.js'
 
-const GOLDEN_REPLAY_FINGERPRINT = '4393dd6d'
+const GOLDEN_REPLAY_FINGERPRINT = '2f2e18b0'
 
 function replay(events, finishTick = 240, header = defaultReplayHeader(), clientFingerprint) {
   return clientFingerprint === undefined
@@ -59,6 +59,11 @@ test('replay fails closed for every simulation-affecting metadata mismatch', asy
     ['rapierVersion', '9.9.9', /Rapier version/],
     ['fingerprintVersion', base.fingerprintVersion + 1, /Fingerprint version/],
     ['physicsPresetId', 'other-preset', /Physics preset/],
+    ['physicsPresetVersion', base.physicsPresetVersion + 1, /Physics preset/],
+    ['physicsPresetHash', '00000000', /Physics preset/],
+    ['eggColliderId', 'other-collider', /Egg collider/],
+    ['eggColliderVersion', base.eggColliderVersion + 1, /Egg collider/],
+    ['eggColliderHash', '00000000', /Egg collider/],
     ['tickRate', 30, /Tick rate/],
     ['levelId', 'other-level', /Level version/],
     ['levelVersion', base.levelVersion + 1, /Level version/],
