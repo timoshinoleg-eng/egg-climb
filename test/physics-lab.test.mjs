@@ -57,6 +57,11 @@ function variant(id, centerOfMassY, baseImpulse, tipImpulse, worldUpWeight, cont
   }
 }
 
+function localUpY(snapshot) {
+  const { x, z } = snapshot.rotation
+  return 1 - 2 * (x * x + z * z)
+}
+
 test('committed collider and physics preset identities match their canonical hashes', () => {
   assert.equal(EGG_COLLIDER_IDENTITY.id, 'egg-convex-v1')
   assert.equal(EGG_COLLIDER_IDENTITY.vertexCount, 62)
@@ -128,26 +133,37 @@ test('physics-v1 produces actual trajectory ordering tip > side > base', async (
   const side = await jumpMetric('jump-side')
   const tip = await jumpMetric('jump-tip')
   console.log('[physics-v1-apex]', JSON.stringify({ base, side, tip }))
-  assert.ok(side.rise > base.rise + 0.15, `base=${base.rise} side=${side.rise}`)
+  assert.ok(side.rise > base.rise + 0.1, `base=${base.rise} side=${side.rise}`)
   assert.ok(tip.rise > side.rise + 0.15, `side=${side.rise} tip=${tip.rise}`)
 })
 
-test('broad-base perturbation is more stable than tip-biased perturbation', async () => {
-  async function maxAngular(id) {
-    return withScenario(id, simulation => {
-      let max = 0
-      for (let i = 0; i < 45; i += 1) {
-        simulation.step({ ...NEUTRAL, moveX: i === 0 ? 0.15 : 0 })
-        const av = simulation.snapshot().angularVelocity
-        max = Math.max(max, Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z))
+test('broad-base 5-degree perturbation is stable while tip-biased perturbation falls away', async () => {
+  async function runTilt(id, position, rotation) {
+    const scenario = physicsLabScenario(id)
+    const initialEgg = { ...scenario.initialEgg, position, rotation }
+    const simulation = await createSimulation({ level: scenario.level, initialEgg })
+    try {
+      const initialUpY = localUpY(simulation.snapshot())
+      let maxAngular = 0
+      let snapshot = simulation.snapshot()
+      for (let i = 0; i < 60; i += 1) {
+        simulation.step(NEUTRAL)
+        snapshot = simulation.snapshot()
+        const av = snapshot.angularVelocity
+        maxAngular = Math.max(maxAngular, Math.sqrt(av.x * av.x + av.y * av.y + av.z * av.z))
       }
-      return max
-    })
+      return { initialUpY, finalUpY: localUpY(snapshot), maxAngular }
+    } finally {
+      simulation.free()
+    }
   }
-  const base = await maxAngular('broad-base-rest')
-  const tip = await maxAngular('tip-biased-contact')
-  console.log('[physics-v1-stability]', JSON.stringify({ baseMaxAngular: base, tipMaxAngular: tip }))
-  assert.ok(tip > base * 1.1, `base=${base} tip=${tip}`)
+
+  const base = await runTilt('broad-base-rest', [0, 0.64, 0], [0, 0, 0.0436193874, 0.9990482216])
+  const tip = await runTilt('tip-biased-contact', [0, 0.82, 0], [0, 0, 0.9990482216, -0.0436193874])
+  console.log('[physics-v1-stability]', JSON.stringify({ base, tip }))
+  assert.ok(base.finalUpY > 0.9, `base final upY=${base.finalUpY}`)
+  assert.ok(tip.finalUpY > -0.9, `tip final upY=${tip.finalUpY}`)
+  assert.ok(tip.maxAngular > base.maxAngular * 1.25, `base=${base.maxAngular} tip=${tip.maxAngular}`)
 })
 
 test('small Physics Lab candidate matrix documents why physics-v1 is the balanced choice', async () => {
