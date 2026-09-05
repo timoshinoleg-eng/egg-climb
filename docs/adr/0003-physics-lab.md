@@ -81,7 +81,7 @@ An isolated 20-degree slope experiment compares normal weights 0, .10, .15, .20,
 
 Replay compatibility is fail-closed on physics preset id/version/hash and egg collider id/version/hash. The worker handshake binds the same identities. The fingerprint authoritative-state slot serializes those identities in addition to the Rapier snapshot.
 
-The previous PR candidate golden was `2f2e18b0`. The current candidate is `ec643eb8`: preset curve identity, jump latch/contact separation repair and simulation version `sim-physics-v1.1` intentionally change its envelope. Golden promotion is pending the cross-platform evidence run; no per-platform golden is permitted.
+The previous PR candidate golden was `2f2e18b0`. The new golden is `ec643eb8`: preset curve identity, jump latch/contact separation repair and simulation version `sim-physics-v1.1` intentionally change its envelope. Before golden promotion, [evidence run 33953331005](https://github.com/timoshinoleg-eng/egg-climb/actions/runs/33953331005) at `e5cd5c0` logged exactly `ec643eb8` on Linux x64, Windows x64, macOS ARM64 and Chromium/Firefox/WebKit. Its only failures were the deliberately retained old-golden assertions. All 36 fixture/preset worker matrices matched Node and each other. No per-platform golden is permitted.
 
 Playwright Chromium, Firefox, and WebKit remain required before merge. WebKit coverage is useful portability evidence but is not a real iOS WKWebView/device proof; a real-device smoke test remains future work.
 
