@@ -1,3 +1,5 @@
+import { resolveFeelPreset, computeFeelPresetHash } from './feel-presets.js'
+import type { FeelPreset } from './feel-presets.js'
 import {
   EGG_COLLIDER_HASH,
   EGG_COLLIDER_ID,
@@ -27,7 +29,7 @@ export interface ReplayResult {
   readonly clientFingerprintMatches: boolean | null
 }
 
-function assertReplay(replay: Replay): void {
+function assertReplay(replay: Replay): FeelPreset {
   const { header } = replay
   if (header.protocolVersion !== REPLAY_PROTOCOL_VERSION) throw new Error('Unsupported replay protocol')
   if (header.simulationVersion !== SIMULATION_VERSION) throw new Error('Simulation version mismatch')
@@ -43,12 +45,14 @@ function assertReplay(replay: Replay): void {
     header.eggColliderVersion !== EGG_COLLIDER_VERSION ||
     header.eggColliderHash !== EGG_COLLIDER_HASH
   ) throw new Error('Egg collider mismatch')
+  const feel = resolveFeelPreset(header.feelPresetId)
+  if (header.feelPresetVersion !== feel.version || header.feelPresetHash !== computeFeelPresetHash(feel)) throw new Error('Feel preset mismatch')
   if (header.tickRate !== PHYSICS_HZ) throw new Error('Tick rate mismatch')
   if (header.levelId !== FOUNDATION_LEVEL_ID || header.levelVersion !== FOUNDATION_LEVEL_VERSION) throw new Error('Level version mismatch')
   if (header.seed !== FOUNDATION_SEED) throw new Error('Unsupported foundation seed')
-  if (header.dimensionMode !== FOUNDATION_DIMENSION_MODE) throw new Error('Dimension mode mismatch')
-  if (header.controlMode !== FOUNDATION_CONTROL_MODE) throw new Error('Control mode mismatch')
-  if (header.assistPresetId !== FOUNDATION_ASSIST_PRESET_ID) throw new Error('Assist preset mismatch')
+  if (header.dimensionMode !== feel.dimensionMode) throw new Error('Dimension mode mismatch')
+  if (header.controlMode !== feel.controlMode) throw new Error('Control mode mismatch')
+  if (header.assistPresetId !== (feel.bufferTicks || feel.coyoteTicks || feel.tipHoldTicks ? feel.id : 'none')) throw new Error('Assist preset mismatch')
   if (!Number.isInteger(replay.finishTick) || replay.finishTick < 0) throw new Error('Invalid finish tick')
   if (!Array.isArray(replay.inputEvents)) throw new Error('Invalid input event list')
   if (replay.clientFingerprint !== undefined && !/^[0-9a-f]{8}$/.test(replay.clientFingerprint)) throw new Error('Invalid client fingerprint')
@@ -65,35 +69,37 @@ function assertReplay(replay: Replay): void {
     if (!Number.isInteger(event.seq) || event.seq !== expectedSeq) throw new Error('Input events must use contiguous canonical sequence numbers per tick')
     expectedSeq += 1
 
-    if (event.kind !== 'move' && event.kind !== 'jump') throw new Error('Unsupported input event kind')
+    if (event.kind !== 'move' && event.kind !== 'jump' && event.kind !== 'jump-cancel') throw new Error('Unsupported input event kind')
     if (event.kind === 'move') {
       if (!Number.isFinite(event.moveX) || !Number.isFinite(event.moveZ)) throw new Error('Invalid move input')
       if (event.moveX < -1 || event.moveX > 1 || event.moveZ < -1 || event.moveZ > 1) throw new Error('Move input is outside [-1, 1]')
-    } else if (typeof event.down !== 'boolean') {
+    } else if (event.kind === 'jump' && typeof event.down !== 'boolean') {
       throw new Error('Invalid jump input')
     }
   }
+  return feel
 }
 
-function applyEvent(event: ReplayInputEvent, state: { moveX: number; moveZ: number; jumpHeld: boolean }, edges: { jumpDown: boolean; jumpUp: boolean }): void {
+function applyEvent(event: ReplayInputEvent, state: { moveX: number; moveZ: number; jumpHeld: boolean }, edges: { jumpDown: boolean; jumpUp: boolean; jumpCancel: boolean }): void {
   if (event.kind === 'move') { state.moveX = event.moveX; state.moveZ = event.moveZ; return }
+  if (event.kind === 'jump-cancel') { state.jumpHeld = false; edges.jumpCancel = true; return }
   if (event.down && !state.jumpHeld) { state.jumpHeld = true; edges.jumpDown = true }
   else if (!event.down && state.jumpHeld) { state.jumpHeld = false; edges.jumpUp = true }
 }
 
 export async function runReplay(replay: Replay): Promise<ReplayResult> {
-  assertReplay(replay)
-  const simulation = await createSimulation()
+  const feel = assertReplay(replay)
+  const simulation = await createSimulation({ feel })
   const state = { moveX: 0, moveZ: 0, jumpHeld: false }
   let cursor = 0
   try {
     for (let tick = 0; tick < replay.finishTick; tick += 1) {
-      const edges = { jumpDown: false, jumpUp: false }
+      const edges = { jumpDown: false, jumpUp: false, jumpCancel: false }
       while (cursor < replay.inputEvents.length && replay.inputEvents[cursor]?.tick === tick) {
         applyEvent(replay.inputEvents[cursor] as ReplayInputEvent, state, edges)
         cursor += 1
       }
-      const input: TickInput = { moveX: state.moveX, moveZ: state.moveZ, jumpDown: edges.jumpDown, jumpUp: edges.jumpUp }
+      const input: TickInput = { moveX: state.moveX, moveZ: state.moveZ, jumpDown: edges.jumpDown, jumpUp: edges.jumpUp, jumpCancel: edges.jumpCancel }
       simulation.step(input)
     }
     const fingerprint = simulation.fingerprint()

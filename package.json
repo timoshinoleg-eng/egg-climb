@@ -3,14 +3,17 @@
   "version": "0.3.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22 <23" },
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check:sim": "node scripts/check-sim-determinism.mjs",
     "test": "npm run build && npm run check:sim && node --test test/*.test.mjs",
     "test:browser": "npm run build && playwright test",
-    "debug:serve": "npm run build && node scripts/serve-debug.mjs"
+    "debug:serve": "npm run build && node scripts/serve-debug.mjs",
+    "replay:playtest": "npm run build && node scripts/replay-playtest.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-deterministic-compat": "0.20.0",

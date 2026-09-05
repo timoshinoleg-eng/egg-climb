@@ -1,3 +1,5 @@
+import { DEFAULT_FEEL, immutableFeelPreset, computeFeelPresetHash } from '../sim/feel-presets.js'
+import type { FeelPreset } from '../sim/feel-presets.js'
 import {
   EGG_COLLIDER_HASH,
   EGG_COLLIDER_ID,
@@ -33,10 +35,12 @@ export class WorkerSimulationHost implements SimulationHost {
   private initialized = false
   private runtimeInfoValue: WorkerRuntimeInfo | undefined
 
+  private readonly expectedFeel: FeelPreset
   private readonly expectedPreset: PhysicsPreset
 
-  constructor(url: string | URL, expectedPreset: PhysicsPreset = PHYSICS_V1) {
+  constructor(url: string | URL, expectedPreset: PhysicsPreset = PHYSICS_V1, expectedFeel: FeelPreset = DEFAULT_FEEL) {
     this.expectedPreset = immutablePhysicsPreset(expectedPreset)
+    this.expectedFeel = immutableFeelPreset(expectedFeel)
     this.worker = new Worker(url, { type: 'module', name: 'egg-climb-simulation' })
     this.worker.addEventListener('message', (event: MessageEvent<WorkerResponse>) => {
       const response = event.data
@@ -107,6 +111,9 @@ export class WorkerSimulationHost implements SimulationHost {
     const info = response.runtimeInfo
     if (
       info.runtime !== 'worker' ||
+      info.feelPresetId !== this.expectedFeel.id ||
+      info.feelPresetVersion !== this.expectedFeel.version ||
+      info.feelPresetHash !== computeFeelPresetHash(this.expectedFeel) ||
       info.workerProtocolVersion !== WORKER_PROTOCOL_VERSION ||
       info.simulationVersion !== SIMULATION_VERSION ||
       info.rapierPackage !== RAPIER_PACKAGE ||
