@@ -35,9 +35,13 @@ create table if not exists runs (
   finish_tick     integer not null check (finish_tick > 0),
   fingerprint     text not null,             -- отпечаток мира после серверного перепрогона
   replay          jsonb not null,            -- полный реплей: повторная проверка и будущие «призраки»
-  replay_sha256   text not null unique,      -- идемпотентность приёмки, защита от дублей
+  replay_sha256   text not null,             -- хеш содержимого реплея (НЕ глобальный ключ идемпотентности)
   client_platform text not null default 'unknown',
-  created_at      timestamptz not null default now()
+  created_at      timestamptz not null default now(),
+  -- Идемпотентность per-игрок-per-вышка. Глобальный UNIQUE по replay_sha256
+  -- неправилен: детерминированная симуляция делает одинаковые реплеи у
+  -- разных игроков легальными (одинаковый ввод → одинаковый реплей).
+  unique (player_id, tower_date, replay_sha256)
 );
 
 create index if not exists runs_tower_date_height_idx on runs (tower_date, max_height_m desc);

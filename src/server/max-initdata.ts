@@ -36,7 +36,7 @@ export type MaxInitDataResult =
 const HMAC_KEY_LABEL = 'WebAppData'
 const DEFAULT_MAX_AGE_SECONDS = 900
 
-async function hmacSha256(keyMaterial: Uint8Array | string, data: string): Promise<ArrayBuffer> {
+async function hmacSha256(keyMaterial: ArrayBuffer | string, data: string): Promise<ArrayBuffer> {
   const encoder = new TextEncoder()
   const rawKey = typeof keyMaterial === 'string' ? encoder.encode(keyMaterial) : keyMaterial
   const key = await crypto.subtle.importKey('raw', rawKey, { name: 'HMAC', hash: { name: 'SHA-256' } }, false, ['sign'])
@@ -58,23 +58,30 @@ function timingSafeEqual(a: string, b: string): boolean {
  * Extract the WebAppData value from a mini-app launch URL.
  * The fragment is URL-encoded once at the URL level; values inside
  * WebAppData keep their own encoding for validateMaxInitData.
+ * Fail-closed: any duplicated launch parameter (especially WebAppData)
+ * rejects the URL.
  */
 export function extractWebAppData(launchUrl: string): string | null {
   const hashIndex = launchUrl.indexOf('#')
   if (hashIndex < 0) return null
   const fragment = launchUrl.slice(hashIndex + 1)
+  const seen = new Set<string>()
+  let value: string | null = null
   for (const pair of fragment.split('&')) {
     const eq = pair.indexOf('=')
     if (eq <= 0) continue
-    if (pair.slice(0, eq) !== 'WebAppData') continue
+    const key = pair.slice(0, eq)
+    if (seen.has(key)) return null
+    seen.add(key)
+    if (key !== 'WebAppData') continue
     const raw = pair.slice(eq + 1)
     try {
-      return decodeURIComponent(raw)
+      value = decodeURIComponent(raw)
     } catch {
-      return raw
+      value = raw
     }
   }
-  return null
+  return value
 }
 
 /**
@@ -115,7 +122,7 @@ export async function validateMaxInitData(
   const launchParams = pairs.map(([key, value]) => `${key}=${value}`).join('\n')
 
   const secretKey = await hmacSha256(HMAC_KEY_LABEL, botToken)
-  const signature = toHex(await hmacSha256(new Uint8Array(secretKey), launchParams))
+  const signature = toHex(await hmacSha256(secretKey, launchParams))
   if (!timingSafeEqual(signature, hash)) return { ok: false, reason: 'signature mismatch' }
 
   const authRaw = pairs.find(([key]) => key === 'auth_date')?.[1]

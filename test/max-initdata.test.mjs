@@ -83,3 +83,15 @@ test('extractWebAppData pulls the encoded payload out of a launch URL', () => {
   assert.equal(extractWebAppData('https://app.example/'), null)
   assert.equal(extractWebAppData('https://app.example/#other=1'), null)
 })
+
+test('extractWebAppData is fail-closed on duplicated launch parameters', () => {
+  const encoded = encodeURIComponent(VALID_INIT_DATA)
+  assert.equal(
+    extractWebAppData(`https://app.example/#WebAppData=${encoded}&WebAppData=${encoded}`),
+    null,
+  )
+  assert.equal(
+    extractWebAppData(`https://app.example/#WebAppPlatform=web&WebAppPlatform=ios&WebAppData=${encoded}`),
+    null,
+  )
+})
