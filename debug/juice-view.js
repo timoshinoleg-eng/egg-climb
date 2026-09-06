@@ -1,14 +1,37 @@
 import * as THREE from 'three'
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { Juice, VISUAL_QUALITY_PROFILES, composeVisualScale } from '../dist/render/juice.js'
 
 const BURST_COUNT = 4
 const BURST_POINTS = VISUAL_QUALITY_PROFILES.high.particlePoints
 const BURST_LIFETIME = 0.85
 const QUALITY_ORDER = ['low', 'medium', 'high']
+
+let postProcessingModules = null
+let postProcessingModulesPromise = null
+
+function loadPostProcessingModules() {
+  if (postProcessingModules) return Promise.resolve(postProcessingModules)
+  if (!postProcessingModulesPromise) {
+    postProcessingModulesPromise = Promise.all([
+      import('three/addons/postprocessing/EffectComposer.js'),
+      import('three/addons/postprocessing/RenderPass.js'),
+      import('three/addons/postprocessing/UnrealBloomPass.js'),
+      import('three/addons/postprocessing/OutputPass.js'),
+    ]).then(([effectComposerModule, renderPassModule, bloomPassModule, outputPassModule]) => {
+      postProcessingModules = {
+        EffectComposer: effectComposerModule.EffectComposer,
+        RenderPass: renderPassModule.RenderPass,
+        UnrealBloomPass: bloomPassModule.UnrealBloomPass,
+        OutputPass: outputPassModule.OutputPass,
+      }
+      return postProcessingModules
+    }).catch(error => {
+      postProcessingModulesPromise = null
+      throw error
+    })
+  }
+  return postProcessingModulesPromise
+}
 
 class PointBurst {
   constructor(scene) {
@@ -164,6 +187,7 @@ export function createJuiceView({ renderer, scene, camera, body }) {
   let renderPass = null
   let bloomPass = null
   let outputPass = null
+  let postProcessingUnavailable = false
   let contextLost = false
   let disposed = false
   const seenMetaIds = new Set()
@@ -188,8 +212,20 @@ export function createJuiceView({ renderer, scene, camera, body }) {
     outputPass = null
   }
 
+  function preloadPostProcessing() {
+    if (disposed || postProcessingModules || postProcessingUnavailable || quality !== 'high' || !bloomEnabled) return
+    void loadPostProcessingModules().catch(() => {
+      if (!disposed) postProcessingUnavailable = true
+    })
+  }
+
   function ensureComposer() {
     if (composer || disposed || contextLost || quality !== 'high' || !bloomEnabled || bloomFlash <= 0) return
+    if (!postProcessingModules) {
+      preloadPostProcessing()
+      return
+    }
+    const { EffectComposer, RenderPass, UnrealBloomPass, OutputPass } = postProcessingModules
     composer = new EffectComposer(renderer)
     renderPass = new RenderPass(scene, camera)
     bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.4, 0.85)
@@ -218,6 +254,8 @@ export function createJuiceView({ renderer, scene, camera, body }) {
     if (!profile().bloom) {
       bloomFlash = 0
       disposeComposer()
+    } else {
+      preloadPostProcessing()
     }
     applySize()
     return quality
@@ -230,7 +268,10 @@ export function createJuiceView({ renderer, scene, camera, body }) {
   }
 
   function triggerBloom() {
-    if (quality === 'high' && profile().bloom && bloomEnabled) bloomFlash = 1
+    if (quality === 'high' && profile().bloom && bloomEnabled) {
+      bloomFlash = 1
+      preloadPostProcessing()
+    }
   }
 
   function spawnForEvents(events) {
@@ -280,6 +321,7 @@ export function createJuiceView({ renderer, scene, camera, body }) {
     if (disposed) return
     contextLost = false
     applySize()
+    if (quality === 'high') preloadPostProcessing()
   }
 
   renderer.domElement?.addEventListener?.('webglcontextlost', onContextLost, false)
@@ -336,6 +378,9 @@ export function createJuiceView({ renderer, scene, camera, body }) {
       if (!bloomEnabled) {
         bloomFlash = 0
         disposeComposer()
+      } else if (quality === 'high') {
+        postProcessingUnavailable = false
+        preloadPostProcessing()
       }
       return bloomEnabled
     },
