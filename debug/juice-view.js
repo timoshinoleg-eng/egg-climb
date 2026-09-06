@@ -98,32 +98,47 @@ export function createJuiceView({ renderer, scene, camera, body }) {
     burst.spawn(origin, options)
   }
 
+  function spawnForEvents(events, origin) {
+    if (events.landingImpact > 0 && !(quality === 'low' && events.landingImpact < 0.4)) {
+      spawnBurst(origin, {
+        color: 0xd8c39a,
+        speed: 1.6 + events.landingImpact * 3.4,
+        up: 1.1,
+        size: 0.075 + events.landingImpact * 0.05,
+      })
+    }
+    if (events.jumped && quality !== 'low') {
+      spawnBurst(origin, { color: 0xfff4d6, speed: 1.4, up: 0.7, gravity: 3.5, size: 0.06 })
+    }
+    if (events.newHeightRecord && quality === 'high') {
+      spawnBurst(origin, { color: 0xfbbf24, speed: 2.6, up: 2.2, gravity: 2.5 })
+      spawnBurst(origin, { color: 0x38bdf8, speed: 2.2, up: 1.8, gravity: 2.5 })
+      bloomFlash = 1
+    }
+  }
+
   return {
     /**
-     * Advance the juice state and fire event particles. Call once per
-     * simulation step (the same snapshot pair used for interpolation), so
-     * one-tick events are never missed. Returns the current JuiceFrame.
+     * Advance the juice state from a snapshot pair and fire event particles.
+     * NOTE: with the current WorkerSimulationHost the UI thread receives only
+     * batch-edge snapshots; use this for the first playtest integration and
+     * switch to `updateWithEvents` once the worker reports per-tick events
+     * (see docs/specs/2026-09-06-visual-preset-v1.md). Returns the JuiceFrame.
      */
     update(dt, prev, curr) {
       frame = juice.update(dt, prev, curr)
-      const { events } = frame
-      const origin = curr.position
-      if (events.landingImpact > 0 && !(quality === 'low' && events.landingImpact < 0.4)) {
-        spawnBurst(origin, {
-          color: 0xd8c39a,
-          speed: 1.6 + events.landingImpact * 3.4,
-          up: 1.1,
-          size: 0.075 + events.landingImpact * 0.05,
-        })
-      }
-      if (events.jumped && quality !== 'low') {
-        spawnBurst(origin, { color: 0xfff4d6, speed: 1.4, up: 0.7, gravity: 3.5, size: 0.06 })
-      }
-      if (events.newHeightRecord && quality === 'high') {
-        spawnBurst(origin, { color: 0xfbbf24, speed: 2.6, up: 2.2, gravity: 2.5 })
-        spawnBurst(origin, { color: 0x38bdf8, speed: 2.2, up: 1.8, gravity: 2.5 })
-        bloomFlash = 1
-      }
+      spawnForEvents(frame.events, curr.position)
+      return frame
+    },
+
+    /**
+     * Advance with externally computed contact events — e.g. a worker batch
+     * folded via `mergeContactEvents`. Squash/shake still integrate here at
+     * the caller's dt; only event detection happens outside.
+     */
+    updateWithEvents(dt, events, curr) {
+      frame = juice.updateWithEvents(dt, events, curr)
+      spawnForEvents(frame.events, curr.position)
       return frame
     },
 

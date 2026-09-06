@@ -78,6 +78,26 @@ export function detectContactEvents(prev: JuiceSnapshot, curr: JuiceSnapshot): C
   return { landingImpact, jumped }
 }
 
+/**
+ * Merge per-tick contact events from a batched worker advance into one
+ * frame-level set: the strongest landing wins, jumps are OR-ed.
+ *
+ * Why: `WorkerSimulationHost.advance(inputs)` returns only the last
+ * `{ previous, current }` snapshot pair of the batch, so one-tick contacts
+ * inside the batch are invisible on the UI thread. The event-accurate
+ * wiring computes `detectContactEvents` per tick inside the worker and
+ * folds the resulting array here (see docs/specs/2026-09-06-visual-preset-v1.md).
+ */
+export function mergeContactEvents(events: readonly ContactEvents[]): ContactEvents {
+  let landingImpact = 0
+  let jumped = false
+  for (const event of events) {
+    if (event.landingImpact > landingImpact) landingImpact = event.landingImpact
+    if (event.jumped) jumped = true
+  }
+  return { landingImpact, jumped }
+}
+
 export interface SquashScale {
   readonly x: number
   readonly y: number
@@ -193,32 +213,37 @@ export class TraumaShake {
 
   reset(): void {
     this.trauma = 0
+    this.time = 0
   }
 }
 
 /**
- * Tracks the attempt height record. Fires once per HEIGHT_RECORD_MARGIN so
- * the view can celebrate without spamming on every micro-improvement.
+ * Tracks the attempt height record. The celebration margin is measured from
+ * the last CELEBRATED height while the true maximum tracks independently —
+ * otherwise a smooth 60 Hz climb would ratchet the reference every tick and
+ * the margin would never accumulate.
  */
 export class HeightTracker {
-  private max = Number.NEGATIVE_INFINITY
+  private maxHeightValue = Number.NEGATIVE_INFINITY
+  private lastCelebrated = Number.NEGATIVE_INFINITY
 
   update(y: number): boolean {
     if (!Number.isFinite(y)) return false
-    if (y > this.max + HEIGHT_RECORD_MARGIN) {
-      this.max = y
+    if (y > this.maxHeightValue) this.maxHeightValue = y
+    if (y > this.lastCelebrated + HEIGHT_RECORD_MARGIN) {
+      this.lastCelebrated = y
       return true
     }
-    if (y > this.max) this.max = y
     return false
   }
 
   get maxHeight(): number {
-    return this.max
+    return this.maxHeightValue
   }
 
   reset(startY = 0): void {
-    this.max = startY
+    this.maxHeightValue = startY
+    this.lastCelebrated = startY
   }
 }
 
@@ -248,20 +273,26 @@ export class Juice {
   }
 
   /**
-   * Advance the visual state. Call once per simulation step with the
-   * previous and current snapshot (the pair the render loop interpolates
-   * between). Frame-rate independent: dynamics integrate `dt`, clamped
-   * to [0, 0.1].
+   * Advance the visual state from a snapshot pair. Frame-rate independent:
+   * dynamics integrate `dt`, clamped to [0, 0.1].
    */
   update(dt: number, prev: JuiceSnapshot, curr: JuiceSnapshot): JuiceFrame {
-    const step = clamp(dt, 0, 0.1)
-    const contact = detectContactEvents(prev, curr)
+    return this.updateWithEvents(dt, detectContactEvents(prev, curr), curr)
+  }
 
-    if (contact.landingImpact > 0) {
-      this.squashSpring.kick(contact.landingImpact)
-      this.cameraShake.add(0.15 + contact.landingImpact * 0.5)
+  /**
+   * Advance with externally computed contact events — e.g. a worker batch
+   * folded via `mergeContactEvents` when the simulation runs in a worker
+   * and the UI thread only receives batch-edge snapshots.
+   */
+  updateWithEvents(dt: number, events: ContactEvents, curr: JuiceSnapshot): JuiceFrame {
+    const step = clamp(dt, 0, 0.1)
+
+    if (events.landingImpact > 0) {
+      this.squashSpring.kick(events.landingImpact)
+      this.cameraShake.add(0.15 + events.landingImpact * 0.5)
     }
-    if (contact.jumped) {
+    if (events.jumped) {
       this.squashSpring.stretchKick()
       this.cameraShake.add(0.1)
     }
@@ -272,8 +303,8 @@ export class Juice {
 
     return {
       events: {
-        landingImpact: contact.landingImpact,
-        jumped: contact.jumped,
+        landingImpact: events.landingImpact,
+        jumped: events.jumped,
         newHeightRecord,
       },
       squash,

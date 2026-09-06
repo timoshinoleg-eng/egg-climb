@@ -7,6 +7,7 @@ import {
   SquashStretch,
   TraumaShake,
   detectContactEvents,
+  mergeContactEvents,
 } from '../dist/render/juice.js'
 
 let tick = 0
@@ -42,6 +43,16 @@ test('takeoff is detected without a false landing', () => {
 test('same-tick snapshot pairs never emit events', () => {
   const s = snap(-9)
   assert.deepEqual(detectContactEvents(s, s), { landingImpact: 0, jumped: false })
+})
+
+test('mergeContactEvents folds a tick batch keeping the strongest impact', () => {
+  assert.deepEqual(mergeContactEvents([]), { landingImpact: 0, jumped: false })
+  const merged = mergeContactEvents([
+    { landingImpact: 0, jumped: false },
+    { landingImpact: 0.3, jumped: false },
+    { landingImpact: 0.7, jumped: true },
+  ])
+  assert.deepEqual(merged, { landingImpact: 0.7, jumped: true })
 })
 
 test('squash compresses on landing and settles back to rest', () => {
@@ -97,6 +108,19 @@ test('trauma level is clamped regardless of the added amount', () => {
   assert.ok(shake.level <= 1)
 })
 
+test('shake after reset replays the identical offset curve', () => {
+  const veteran = new TraumaShake()
+  const fresh = new TraumaShake()
+  veteran.add(0.7)
+  for (let i = 0; i < 90; i += 1) veteran.update(1 / 60) // длинная «прошлая попытка»
+  veteran.reset()
+  veteran.add(0.5)
+  fresh.add(0.5)
+  for (let i = 0; i < 30; i += 1) {
+    assert.deepEqual(veteran.update(1 / 60), fresh.update(1 / 60), `frame ${i} diverges after reset`)
+  }
+})
+
 test('height records fire once per margin and respect reset', () => {
   const heights = new HeightTracker()
   heights.reset(0)
@@ -106,6 +130,16 @@ test('height records fire once per margin and respect reset', () => {
   assert.equal(heights.update(0.6), true)
   heights.reset(5)
   assert.equal(heights.update(5.1), false)
+})
+
+test('height records accumulate across smooth 60 Hz climbs', () => {
+  // Regression: margin must be measured from the last celebrated height,
+  // not from a ratcheting per-tick maximum, or smooth climbs never fire.
+  const heights = new HeightTracker()
+  heights.reset(0)
+  const results = [0.05, 0.1, 0.15, 0.21].map((y) => heights.update(y))
+  assert.deepEqual(results, [false, false, false, true])
+  assert.equal(heights.maxHeight, 0.21)
 })
 
 test('Juice facade turns a fall-then-land sequence into squash, shake and a record', () => {
@@ -119,6 +153,15 @@ test('Juice facade turns a fall-then-land sequence into squash, shake and a reco
   assert.equal(frame.events.newHeightRecord, true)
   assert.ok(frame.squash.y < 0.95, `expected visible squash, got ${frame.squash.y}`)
   assert.ok(frame.maxHeight >= 1.4)
+})
+
+test('Juice.updateWithEvents accepts externally merged worker batch events', () => {
+  const juice = new Juice()
+  juice.reset(0)
+  const frame = juice.updateWithEvents(1 / 60, { landingImpact: 0.6, jumped: false }, snap(0.5, 1.4))
+  assert.equal(frame.events.landingImpact, 0.6)
+  assert.equal(frame.events.jumped, false)
+  assert.ok(frame.squash.y < 0.98, `expected squash from merged impact, got ${frame.squash.y}`)
 })
 
 test('Juice reset starts a fresh attempt cleanly', () => {
