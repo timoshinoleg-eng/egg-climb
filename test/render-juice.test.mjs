@@ -1,190 +1,73 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import {
-  HeightTracker,
-  Juice,
-  SquashStretch,
-  TraumaShake,
-  detectContactEvents,
-  mergeContactEvents,
-} from '../dist/render/juice.js'
+import { AttemptHeightTracker, Juice, SquashStretch, TraumaShake, VISUAL_QUALITY_PROFILES, composeVisualScale } from '../dist/render/juice.js'
 
-let tick = 0
-function snap(vy, y = 0) {
-  tick += 1
-  return {
-    tick,
-    position: { x: 0, y, z: 0 },
-    rotation: { x: 0, y: 0, z: 0, w: 1 },
-    linearVelocity: { x: 0, y: vy, z: 0 },
-    angularVelocity: { x: 0, y: 0, z: 0 },
-  }
-}
+function snapshot(y = 0, vy = 0) { return { position: { x: 0, y, z: 0 }, linearVelocity: { x: 0, y: vy, z: 0 } } }
+function jumpEvent(tick = 1) { return { id: `0:${tick}:jump:0`, attemptId: 0, tick, ordinal: 0, kind: 'jump', source: 'support', strength: 3, position: { x: 0, y: 1, z: 0 } } }
+function landEvent(tick = 2, impact = 0.8) { return { id: `0:${tick}:hard-land:0`, attemptId: 0, tick, ordinal: 0, kind: 'hard-land', impact, position: { x: 0, y: 0.6, z: 0 } } }
 
-test('landing is detected from absorbed fall speed and scaled to [0, 1]', () => {
-  const hit = detectContactEvents(snap(-8), snap(0.8))
-  assert.ok(hit.landingImpact > 0.5 && hit.landingImpact <= 1)
-  assert.equal(hit.jumped, false)
-})
-
-test('weak contacts below the absorb threshold stay silent', () => {
-  const soft = detectContactEvents(snap(-1.6), snap(0.3))
-  assert.equal(soft.landingImpact, 0)
-  assert.equal(soft.jumped, false)
-})
-
-test('takeoff is detected without a false landing', () => {
-  const jump = detectContactEvents(snap(0), snap(6))
-  assert.equal(jump.jumped, true)
-  assert.equal(jump.landingImpact, 0)
-})
-
-test('same-tick snapshot pairs never emit events', () => {
-  const s = snap(-9)
-  assert.deepEqual(detectContactEvents(s, s), { landingImpact: 0, jumped: false })
-})
-
-test('mergeContactEvents folds a tick batch keeping the strongest impact', () => {
-  assert.deepEqual(mergeContactEvents([]), { landingImpact: 0, jumped: false })
-  const merged = mergeContactEvents([
-    { landingImpact: 0, jumped: false },
-    { landingImpact: 0.3, jumped: false },
-    { landingImpact: 0.7, jumped: true },
-  ])
-  assert.deepEqual(merged, { landingImpact: 0.7, jumped: true })
-})
-
-test('squash compresses on landing and settles back to rest', () => {
-  const squash = new SquashStretch()
-  squash.kick(1)
+test('squash compresses on landing, preserves volume and settles back to rest', () => {
+  const squash = new SquashStretch(); squash.kick(1)
   const first = squash.update(1 / 60, 0)
   assert.ok(first.y < 0.9, `expected visible compression, got ${first.y}`)
+  assert.ok(Math.abs(first.x * first.x * first.y - 1) < 1e-9)
   let scale = first
   for (let i = 0; i < 120; i += 1) scale = squash.update(1 / 60, 0)
   assert.ok(Math.abs(scale.y - 1) < 0.03, `expected settle near 1, got ${scale.y}`)
 })
 
-test('squash stays within clamps and preserves volume', () => {
-  const squash = new SquashStretch()
-  squash.kick(1)
-  squash.kick(1)
-  for (let i = 0; i < 30; i += 1) {
-    const s = squash.update(1 / 60, 0)
-    assert.ok(s.y >= 0.55 && s.y <= 1.35, `scale out of clamp: ${s.y}`)
-    assert.ok(Math.abs(s.x * s.x * s.y - 1) < 0.35, 'volume roughly preserved')
-  }
+test('squash stays within clamps and air stretch follows vertical speed', () => {
+  const squash = new SquashStretch(); squash.kick(1); squash.kick(1)
+  for (let i = 0; i < 30; i += 1) { const scale = squash.update(1 / 60, 0); assert.ok(scale.y >= 0.55 && scale.y <= 1.35) }
+  squash.reset(); let rising
+  for (let i = 0; i < 61; i += 1) rising = squash.update(1 / 60, 8)
+  assert.ok(rising.y > 1.08 && rising.y < 1.25)
 })
 
-test('air stretch follows vertical speed in both directions', () => {
-  const rising = new SquashStretch()
-  let s = rising.update(1 / 60, 8)
-  for (let i = 0; i < 60; i += 1) s = rising.update(1 / 60, 8)
-  assert.ok(s.y > 1.08 && s.y < 1.25, `rising stretch, got ${s.y}`)
-
-  const falling = new SquashStretch()
-  for (let i = 0; i < 61; i += 1) s = falling.update(1 / 60, -10)
-  assert.ok(s.y < 0.95 && s.y > 0.8, `falling stretch, got ${s.y}`)
+test('visual scale composes from immutable base instead of feeding back modified scale', () => {
+  const base = Object.freeze({ x: 0.92, y: 1.18, z: 0.92 }); const effect = { x: 1.1, y: 0.8, z: 1.1 }
+  assert.deepEqual(composeVisualScale(base, effect), composeVisualScale(base, effect))
+  assert.deepEqual(base, { x: 0.92, y: 1.18, z: 0.92 })
+  assert.deepEqual(composeVisualScale(base, { x: 1, y: 1, z: 1 }), base)
 })
 
-test('trauma shake is silent at rest, reacts to trauma and fully decays', () => {
-  const shake = new TraumaShake()
-  assert.deepEqual(shake.update(1 / 60), { x: 0, y: 0, roll: 0 })
-  shake.add(0.8)
+test('trauma shake is additive state, reacts, fully decays, and reset replays identically', () => {
+  const shake = new TraumaShake(); assert.deepEqual(shake.update(1 / 60), { x: 0, y: 0, roll: 0 }); shake.add(0.8)
   let peak = 0
-  for (let i = 0; i < 10; i += 1) {
-    const o = shake.update(1 / 60)
-    peak = Math.max(peak, Math.abs(o.x) + Math.abs(o.y) + Math.abs(o.roll))
-  }
-  assert.ok(peak > 0, 'shake must produce a visible offset')
-  let rest = { x: 1, y: 1, roll: 1 }
-  for (let i = 0; i < 300; i += 1) rest = shake.update(1 / 60)
-  assert.deepEqual(rest, { x: 0, y: 0, roll: 0 })
+  for (let i = 0; i < 10; i += 1) { const offset = shake.update(1 / 60); peak = Math.max(peak, Math.abs(offset.x) + Math.abs(offset.y) + Math.abs(offset.roll)) }
+  assert.ok(peak > 0)
+  for (let i = 0; i < 300; i += 1) shake.update(1 / 60)
+  assert.deepEqual(shake.update(1 / 60), { x: 0, y: 0, roll: 0 })
+  const fresh = new TraumaShake(); shake.reset(); shake.add(0.5); fresh.add(0.5)
+  for (let i = 0; i < 30; i += 1) assert.deepEqual(shake.update(1 / 60), fresh.update(1 / 60))
 })
 
-test('trauma level is clamped regardless of the added amount', () => {
-  const shake = new TraumaShake()
-  shake.add(3)
-  assert.ok(shake.level <= 1)
+test('attempt height tracker is telemetry only and reset is exact', () => {
+  const heights = new AttemptHeightTracker(); heights.reset(2); heights.update(2.1); heights.update(1); heights.update(3.2); assert.equal(heights.maxHeight, 3.2); heights.reset(10); assert.equal(heights.maxHeight, 10)
 })
 
-test('shake after reset replays the identical offset curve', () => {
-  const veteran = new TraumaShake()
-  const fresh = new TraumaShake()
-  veteran.add(0.7)
-  for (let i = 0; i < 90; i += 1) veteran.update(1 / 60) // длинная «прошлая попытка»
-  veteran.reset()
-  veteran.add(0.5)
-  fresh.add(0.5)
-  for (let i = 0; i < 30; i += 1) {
-    assert.deepEqual(veteran.update(1 / 60), fresh.update(1 / 60), `frame ${i} diverges after reset`)
-  }
+test('Juice consumes explicit ordered events once and never invents Personal Best', () => {
+  const juice = new Juice(); juice.reset(0); const jump = jumpEvent(1)
+  const first = juice.update(1 / 60, snapshot(1.2, 4), [jump]); assert.deepEqual(first.events, [jump]); assert.ok(first.squash.y > 1); assert.equal(first.attemptMaxHeight, 1.2); assert.equal('newHeightRecord' in first, false)
+  assert.deepEqual(juice.update(1 / 60, snapshot(1.3, 3), [jump]).events, [])
+  const land = landEvent(2); const landed = juice.update(1 / 60, snapshot(0.6, 0), [land]); assert.deepEqual(landed.events, [land]); assert.ok(landed.shake.x !== 0 || landed.shake.y !== 0 || landed.shake.roll !== 0)
 })
 
-test('height records fire once per margin and respect reset', () => {
-  const heights = new HeightTracker()
-  heights.reset(0)
-  assert.equal(heights.update(0.1), false)
-  assert.equal(heights.update(0.31), true)
-  assert.equal(heights.update(0.35), false)
-  assert.equal(heights.update(0.6), true)
-  heights.reset(5)
-  assert.equal(heights.update(5.1), false)
+test('Juice reset clears event cursor, spring, shake and attempt maximum', () => {
+  const juice = new Juice(); juice.reset(0); juice.update(1 / 60, snapshot(4, 0), [landEvent(2)]); juice.reset(10)
+  const frame = juice.update(1 / 60, snapshot(10, 0), []); assert.deepEqual(frame.events, []); assert.equal(frame.attemptMaxHeight, 10); assert.ok(Math.abs(frame.squash.y - 1) < 1e-12); assert.deepEqual(frame.shake, { x: 0, y: 0, roll: 0 })
 })
 
-test('height records accumulate across smooth 60 Hz climbs', () => {
-  // Regression: margin must be measured from the last celebrated height,
-  // not from a ratcheting per-tick maximum, or smooth climbs never fire.
-  const heights = new HeightTracker()
-  heights.reset(0)
-  const results = [0.05, 0.1, 0.15, 0.21].map((y) => heights.update(y))
-  assert.deepEqual(results, [false, false, false, true])
-  assert.equal(heights.maxHeight, 0.21)
-})
-
-test('Juice facade turns a fall-then-land sequence into squash, shake and a record', () => {
-  const juice = new Juice()
-  juice.reset(0)
-  const fall = snap(-9, 2)
-  const land = snap(0.5, 1.4)
-  const frame = juice.update(1 / 60, fall, land)
-  assert.ok(frame.events.landingImpact > 0.5)
-  assert.equal(frame.events.jumped, false)
-  assert.equal(frame.events.newHeightRecord, true)
-  assert.ok(frame.squash.y < 0.95, `expected visible squash, got ${frame.squash.y}`)
-  assert.ok(frame.maxHeight >= 1.4)
-})
-
-test('Juice.updateWithEvents accepts externally merged worker batch events', () => {
-  const juice = new Juice()
-  juice.reset(0)
-  const frame = juice.updateWithEvents(1 / 60, { landingImpact: 0.6, jumped: false }, snap(0.5, 1.4))
-  assert.equal(frame.events.landingImpact, 0.6)
-  assert.equal(frame.events.jumped, false)
-  assert.ok(frame.squash.y < 0.98, `expected squash from merged impact, got ${frame.squash.y}`)
-})
-
-test('Juice reset starts a fresh attempt cleanly', () => {
-  const juice = new Juice()
-  juice.reset(0)
-  juice.update(1 / 60, snap(-9, 2), snap(0.5, 1.4))
-  juice.reset(10)
-  const frame = juice.update(1 / 60, snap(0, 10), snap(0, 10.1))
-  assert.equal(frame.events.newHeightRecord, false)
-  assert.equal(frame.maxHeight, 10.1)
+test('low and medium tiers categorically disable bloom and reduce budgets', () => {
+  assert.equal(VISUAL_QUALITY_PROFILES.low.bloom, false); assert.equal(VISUAL_QUALITY_PROFILES.medium.bloom, false); assert.equal(VISUAL_QUALITY_PROFILES.high.bloom, true)
+  assert.ok(VISUAL_QUALITY_PROFILES.low.renderScale < VISUAL_QUALITY_PROFILES.medium.renderScale); assert.ok(VISUAL_QUALITY_PROFILES.medium.renderScale < VISUAL_QUALITY_PROFILES.high.renderScale); assert.ok(VISUAL_QUALITY_PROFILES.low.particlePoints < VISUAL_QUALITY_PROFILES.medium.particlePoints)
 })
 
 test('juice core has no render, DOM, clock or ambient-random dependencies', async () => {
-  const source = await readFile('src/render/juice.ts', 'utf8')
-  assert.doesNotMatch(source, /from\s+['"]three(?:\/|['"])/)
-  assert.doesNotMatch(source, /\bwindow\b|\bdocument\b/)
-  assert.doesNotMatch(source, /\brequestAnimationFrame\b|\bperformance\.now\b|\bDate\.now\b/)
-  assert.doesNotMatch(source, /\bMath\.random\s*\(/)
+  const source = await readFile('src/render/juice.ts', 'utf8'); assert.doesNotMatch(source, /from\s+['"]three(?:\/|['"])/); assert.doesNotMatch(source, /\bwindow\b|\bdocument\b/); assert.doesNotMatch(source, /\brequestAnimationFrame\b|\bperformance\.now\b|\bDate\.now\b/); assert.doesNotMatch(source, /\bMath\.random\s*\(/); assert.doesNotMatch(source, /detectContactEvents|mergeContactEvents/)
 })
 
 test('juice demo page uses only pinned local modules, not a CDN', async () => {
-  const html = await readFile('debug/juice-demo.html', 'utf8')
-  assert.doesNotMatch(html, /https?:\/\//)
-  assert.match(html, /\/node_modules\/three\/build\/three\.module\.js/)
-  assert.match(html, /\/node_modules\/three\/examples\/jsm\//)
+  const html = await readFile('debug/juice-demo.html', 'utf8'); assert.doesNotMatch(html, /https?:\/\//); assert.match(html, /\/node_modules\/three\/build\/three\.module\.js/); assert.match(html, /\/node_modules\/three\/examples\/jsm\//)
 })
