@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import * as THREE from 'three'
 import { createCameraShakeLayer, createJuiceView } from '../debug/juice-view.js'
@@ -30,6 +31,13 @@ test('medium/low render path never constructs or runs post-processing', () => {
   const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(); scene.add(camera); const body = new THREE.Group(); scene.add(body); const renderer = fakeRenderer(); const view = createJuiceView({ renderer, scene, camera, body })
   assert.equal(view.quality, 'medium'); assert.equal(view.postProcessingCreated, false); view.setSize(1000, 500); assert.deepEqual(renderer.sizes.at(-1), [850, 425, false]); view.render(1 / 60); assert.equal(view.postProcessingCreated, false); assert.equal(renderer.renders, 1)
   view.setQuality('low'); view.emitMeta({ id: 'pb-low', kind: 'personal-best', value: 12 }); view.render(1 / 60); assert.equal(view.postProcessingCreated, false); assert.deepEqual(renderer.sizes.at(-1), [700, 350, false]); assert.equal(renderer.renders, 2); view.dispose()
+})
+
+test('post-processing addons stay behind dynamic high-tier imports', async () => {
+  const source = await readFile(new URL('../debug/juice-view.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /^import .*postprocessing\//m)
+  assert.match(source, /import\('three\/addons\/postprocessing\/EffectComposer\.js'\)/)
+  assert.match(source, /import\('three\/addons\/postprocessing\/UnrealBloomPass\.js'\)/)
 })
 
 test('context loss prevents rendering, restore provides a recovery path, dispose removes listeners', () => {
