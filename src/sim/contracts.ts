@@ -2,6 +2,7 @@ import type { FeelState, FeelJump } from './feel-controller.js'
 import { DEFAULT_FEEL, computeFeelPresetHash } from './feel-presets.js'
 import type { FeelPreset } from './feel-presets.js'
 import {
+  DAILY_RULESET_HASH,
   EGG_COLLIDER_HASH,
   EGG_COLLIDER_ID,
   EGG_COLLIDER_VERSION,
@@ -9,6 +10,9 @@ import {
   FOUNDATION_ASSIST_PRESET_ID,
   FOUNDATION_CONTROL_MODE,
   FOUNDATION_DIMENSION_MODE,
+  FOUNDATION_GENERATOR_VERSION,
+  FOUNDATION_LEVEL_FORMAT_VERSION,
+  FOUNDATION_LEVEL_HASH,
   FOUNDATION_LEVEL_ID,
   FOUNDATION_LEVEL_VERSION,
   FOUNDATION_SEED,
@@ -58,6 +62,14 @@ export interface ReplayHeader {
   readonly tickRate: typeof PHYSICS_HZ
   readonly levelId: string
   readonly levelVersion: number
+  /** Serialization schema of the canonical LevelDefinition. */
+  readonly levelFormatVersion: number
+  /** SHA-256 of the exact canonical LevelDefinition used for the run. */
+  readonly levelHash: string
+  /** Generator provenance. The canonical level, not the seed, is authoritative. */
+  readonly generatorVersion: number
+  /** SHA-256 identity of competitive scoring/ranking rules. */
+  readonly rulesetHash: string
   readonly seed: number
   readonly dimensionMode: DimensionMode
   readonly controlMode: ControlMode
@@ -139,6 +151,10 @@ export function defaultReplayHeader(feel: FeelPreset = DEFAULT_FEEL): ReplayHead
     tickRate: PHYSICS_HZ,
     levelId: FOUNDATION_LEVEL_ID,
     levelVersion: FOUNDATION_LEVEL_VERSION,
+    levelFormatVersion: FOUNDATION_LEVEL_FORMAT_VERSION,
+    levelHash: FOUNDATION_LEVEL_HASH,
+    generatorVersion: FOUNDATION_GENERATOR_VERSION,
+    rulesetHash: DAILY_RULESET_HASH,
     seed: FOUNDATION_SEED,
     dimensionMode: feel.dimensionMode,
     controlMode: feel.controlMode,

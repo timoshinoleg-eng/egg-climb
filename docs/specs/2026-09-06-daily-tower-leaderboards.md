@@ -1,113 +1,196 @@
-# Daily Tower leaderboards — schema and acceptance flow
+# Daily Tower leaderboard — contract foundation
 
-Status: groundwork (2026-09-06). Implements the storage and acceptance
-half of ADR 0001 step 7 ("Daily Tower, server replay validation and
-leaderboard acceptance rules"). The procedural Daily Tower generator
-itself is a separate sim PR.
+Status: contract foundation for ADR 0001 step 7. This PR does not deploy a
+backend, provision a database, or implement the procedural Kitchen/Daily
+generator.
 
-## Decision: Neon + Node validation endpoint
+## Implemented in this PR
 
-Score acceptance must re-run the submitted replay through the deterministic
-simulation (`runReplay` from `dist/sim`). That needs a Node runtime with
-the repo's pinned npm packages (`@dimforge/rapier3d-deterministic-compat`).
+- Replay protocol v4 extends the existing replay identity with only the
+  Daily-specific evidence that was missing: `levelFormatVersion`, canonical
+  `levelHash`, `generatorVersion`, and `rulesetHash`. Existing simulation,
+  Rapier, physics/egg/feel, tick-rate, level id/version, seed, controls and
+  assist identity remain in the same `ReplayHeader`.
+- `LevelDefinition` is a minimal versioned canonical storage shape for the
+  geometry the current simulation already supports. No Kitchen schema is
+  guessed here.
+- `runReplay()` derives historical max-height telemetry inside the
+  authoritative tick loop and structural replay limits are checked before
+  Rapier is constructed.
+- MAX `WebAppData` parsing is fail-closed for malformed percent encoding,
+  malformed pairs, duplicate outer parameters and duplicate signed inner
+  keys. Signed `user.id` is preserved as a decimal string to avoid int64
+  precision loss.
+- Canonical JSON + SHA-256 helpers define canonical level and replay evidence
+  hashes. Client fingerprint telemetry is excluded from replay content
+  identity.
+- PostgreSQL schema stores immutable Daily identity, fixed-point score fields,
+  canonical replay text, and a deterministic leaderboard view.
 
-- **Neon** (serverless Postgres, eu-central) pairs with Vercel Functions
-  running Node — the replay validator ships the same `dist/sim` build the
-  tests already run. Recommended.
-- Supabase is a viable fallback (the SQL here is compatible), but its Edge
-  Functions run Deno, where the Rapier WASM compat build is unverified —
-  an avoidable risk for the acceptance-critical path.
+## Canonical Daily identity
 
-## Submit flow
-
-1. Mini App launches in MAX; the client reads `WebAppData` from the URL
-   fragment (see `src/server/max-initdata.ts`; the outer parser is
-   fail-closed on duplicated launch parameters).
-2. On run finish, the client POSTs `{ initData, replay, clientPlatform }`
-   to `/api/runs`. Claimed scores are never trusted.
-3. Server validates `initData` (HMAC-SHA256 + auth_date freshness),
-   identifies the player (`user.id`), upserts `players`.
-4. Server re-runs `replay` via `runReplay` — but only after the fail-fast
-   resource limits below pass. Rejection reasons from the replay contract
-   (protocol/sim/Rapier/preset/level mismatch, non-canonical events) map
-   to HTTP 422.
-5. Server derives the result from its own run: fingerprint and height.
-   Note: the current replay API returns the final snapshot only; tracking
-   per-tick max height is a small sim addition required before launch.
-6. Insert into `runs` (`unique (player_id, tower_date, replay_sha256)` →
-   idempotent retries per player per tower). Response:
-   `{ accepted: true, rank, bestHeightM }`.
-
-## Fail-fast replay limits (required before /api/runs ships)
-
-`runReplay` today only checks `finishTick >= 0`; an authenticated user
-could otherwise submit an enormous replay and keep Rapier busy. Before the
-endpoint goes live, enforce (in `src/sim/replay.ts` + the HTTP layer):
-
-- max `finishTick` (e.g. 36 000 ticks = 10 minutes of play)
-- max `inputEvents.length` (e.g. 20 000)
-- max request body bytes at the edge (e.g. 256 KB) — rejects before parsing
-- per-player rate limit evaluated BEFORE any replay execution
-- CPU/wall-clock budget around `runReplay` with a hard timeout
-
-These belong to the endpoint PR, but they are launch blockers, so they are
-recorded here.
-
-## API contract (draft)
+A Daily is selected by one **UTC calendar date** and published once. The
+storage identity is:
 
 ```
-POST /api/runs
-  body: { initData: string, replay: Replay, clientPlatform?: string }
-  200 { accepted: true, rank: number, bestHeightM: number }
-  401 { accepted: false, reason: string }   // initData invalid/stale
-  422 { accepted: false, reason: string }   // replay rejected
-
-GET /api/leaderboard?date=YYYY-MM-DD&limit=50
-  200 { date, entries: [{ rank, displayName, maxHeightM, finishTick }] }
+tower_date
+level_id + level_version
+seed                       # provenance/debug only
+generator_version
+level_format_version
+level_hash                 # SHA-256(canonical_level)
+ruleset_hash
+canonical_level            # exact canonical LevelDefinition text
 ```
 
-## Schema
+`seed` is not source of truth. The exact canonical level text is. Publication
+must use insert-once semantics: if a row already exists for a UTC date, read
+and reuse it. `daily_towers` rejects UPDATE and DELETE so a published date
+cannot silently regenerate under another generator or level definition.
 
-See `db/migrations/0001_leaderboard.sql` (idempotent, Postgres 15+):
+Canonical JSON sorts object keys lexicographically, preserves array order,
+rejects sparse/non-JSON values, and uses ECMAScript JSON number rendering.
+`FOUNDATION_LEVEL_HASH` is tested against the committed canonical Foundation
+`LevelDefinition`. The Daily ruleset hash is tested the same way.
 
-- `players` — one row per MAX user; only `max_user_id` + `display_name`
-  are stored. initData is validated in memory and never persisted.
-- `daily_towers` — one row per day: `(tower_date, seed, level_version)`.
-- `runs` — every accepted attempt with the full replay (`jsonb`), the
-  server-computed fingerprint and a per-player-per-tower replay hash for
-  idempotency. The hash is deliberately NOT globally unique: deterministic
-  replays make identical inputs from different players legal.
-- `daily_leaderboard` (view) — best run per player per tower: height desc,
-  then fewest ticks.
+## Canonical score v1
 
-Apply with: `psql $DATABASE_URL -f db/migrations/0001_leaderboard.sql`.
+The level origin is `LevelDefinition.origin`. After **every completed
+authoritative simulation tick**, replay validation derives the egg world-space
+center-of-mass Y from the authoritative rigid-body pose and pinned physics COM
+offset. It subtracts `origin.y`, converts that sample to integer millimetres,
+and updates the historical score.
 
-## Anti-cheat and abuse rules
+Conversion is deterministic:
 
-- The replay is the score: height and fingerprint come from the server
-  re-run, never from client fields.
-- Replay metadata must pin the current sim/physics/level versions — the
-  existing fail-closed contract rejects stale or foreign replays.
-- Resource limits above run before the simulator starts.
-- Freshness window 900 s on `auth_date` blocks captured-payload reuse.
-- Optional hardening later: a separate HTTP idempotency key distinct from
-  the replay content hash.
+```
+scaled = meters * 1000
+positive: floor(scaled + 0.5)
+negative: -floor(-scaled + 0.5)
+```
 
-## Retention hooks enabled by this schema
+Thus exact half-millimetre ties round away from zero. Historical comparisons
+are made **after** quantization. `max_height_mm` is the largest sampled integer
+and `first_tick_at_max_height` is the earliest completed tick that produced
+that integer. Equal later samples never replace the first tick. Render rate,
+presentation events and client-supplied score fields are irrelevant.
 
-- Daily Tower ladder resets every day — a reason to return tomorrow.
-- Stored replays unlock asynchronous «ghosts» of friends' runs later
-  (read-only; no schema change needed).
-- Share prompt on a new personal best via the MAX deeplink
-  `https://max.ru/:share?text=...` (works on iOS/Android/web).
+A zero-tick replay has no completed-tick sample, so `runReplay()` returns
+`maxHeightMm = null` and `firstTickAtMaxHeight = null`. It is valid replay data
+but is not an acceptable leaderboard attempt; persisted attempts require at
+least one tick.
 
-## Follow-ups (not in this PR)
+The Foundation level still has no authoritative finish semantic. Therefore
+`runReplay()` returns `completed = false` and `completionTick = null`; this PR
+does not invent a finish heuristic. The schema is ready for a future explicit
+Finish contract.
 
-1. Sim: per-tick max-height tracking during `runReplay` + its golden test.
-2. Daily Tower generator in `src/sim` (seeded, committed order) + level
-   version registration in replay metadata.
-3. Vercel Function `/api/runs` wiring `validateMaxInitData` + `runReplay`
-   + Neon; secrets via env (`MAX_BOT_TOKEN`, `DATABASE_URL`); replay
-   resource limits from this spec.
-4. MAX Partner Cabinet: bot publication requires a юрлицо/ИП/самозанятый
-   account per platform rules — sort out before the public launch.
+## Ranking semantics
+
+Mixed leaderboard ordering is:
+
+1. completed runs before all incomplete runs;
+2. completed: `completion_tick ASC`, then `run_id ASC`;
+3. incomplete: `max_height_mm DESC`, then
+   `first_tick_at_max_height ASC`, then `run_id ASC`.
+
+The SQL view first selects the best accepted run per player per Daily using
+that exact order, then assigns global rank for that Daily using the same order.
+Replay end tick is never a surrogate for first tick at max height.
+
+## Replay resource admission
+
+Core validation currently enforces, before simulation construction:
+
+- `finishTick <= 18_000` (5 minutes at 60 Hz);
+- `inputEvents.length <= 10_000`;
+- at most 32 canonical input events at one tick;
+- all existing fail-closed replay compatibility and canonical event rules.
+
+These are reusable `ReplayLimits`; boundary and rejection cases are tested.
+The future HTTP layer additionally needs a request-body byte limit **before
+JSON parsing** and rate limiting before replay execution.
+
+A synchronous `Promise.race([runReplay(), timeout])` is explicitly **not** a
+security timeout: it cannot interrupt CPU-bound Rapier work in the same JS
+isolate. Production replay acceptance requires a killable boundary such as a
+Worker Thread, child process or equivalent isolate that the request runtime can
+actually terminate. That remains a launch blocker because this PR contains no
+HTTP replay executor.
+
+## MAX initData contract
+
+The validator follows the current official MAX Mini Apps validation algorithm
+(`https://dev.max.ru/docs/webapps/validation`): decode signed values, exclude
+`hash`, sort keys, join `key=value` lines with `\n`, derive
+`HMAC-SHA256(key="WebAppData", data=BOT_TOKEN)`, then HMAC the data-check
+string with that secret and compare lowercase hex in constant time.
+
+Parser rules are deliberately strict:
+
+- every outer launch-fragment key appears once;
+- malformed percent encoding rejects the entire launch fragment;
+- every signed inner key appears once (`hash`, `auth_date`, `user`,
+  `query_id`, and unknown future keys included);
+- malformed signed user JSON rejects rather than becoming an anonymous user;
+- `auth_date` defaults to a 900-second freshness/skew window;
+- user identity is returned as a decimal string, never a JS Number.
+
+MAX API identity is int64-capable, so lossless string storage avoids precision
+loss above `Number.MAX_SAFE_INTEGER`. Raw initData is validated in memory and
+must not be persisted or logged. The bot token never belongs in a client
+bundle. MAX real `first_name`/username are not public leaderboard identity;
+`players.public_display_name` is a separate nullable nickname/egg-name field.
+
+## Replay hash, accepted-attempt uniqueness, HTTP idempotency
+
+These are three separate concepts:
+
+1. `replay_sha256` is SHA-256 of canonical authoritative replay evidence:
+   header + canonical input events + finish tick. `clientFingerprint` is
+   excluded because it is untrusted telemetry.
+2. DB uniqueness is `(player_id, daily_tower_id, replay_sha256)`. It prevents
+   duplicate accepted attempts for one player/day while allowing two players
+   to submit identical deterministic input.
+3. HTTP idempotency is a transport concern for the future endpoint. If an
+   idempotency key is added, it is separate from the replay content hash.
+
+The exact canonical replay text corresponding to the hash is stored as text;
+PostgreSQL `jsonb` normalization is not used as the hash representation.
+
+## Future submit flow
+
+The future endpoint must preserve this order:
+
+```
+request
+→ body-size guard before JSON parse
+→ strict MAX initData validation
+→ per-user/IP rate limit
+→ cheap assertReplay structural/compatibility validation
+→ load canonical Daily and match replay level/generator/ruleset identity
+→ killable replay execution boundary
+→ server-derived score + fingerprint
+→ transactional/idempotent persistence
+→ leaderboard result
+```
+
+Claimed client height/completion/rank is never accepted as evidence. A client
+fingerprint mismatch remains nondeterminism telemetry under ADR 0002, not proof
+of cheating.
+
+## Remaining launch blockers (outside this PR)
+
+- Explicit Finish/goal semantic in the authoritative level/simulation contract.
+- Procedural Daily generator + atomic UTC publication using canonical
+  `LevelDefinition`; Kitchen content remains a separate stage.
+- HTTP `/api/runs` and leaderboard read endpoint.
+- Pre-parse body-size enforcement and production rate limiting.
+- Killable replay execution worker/process/isolate with enforced wall-clock
+  termination; no fake same-isolate Promise timeout.
+- Transactional persistence/idempotency handling and DB provisioning/secrets.
+- Real MAX launch integration and a real-device/WKWebView smoke test before
+  public release.
+
+No Neon/Supabase/Vercel resource is created or selected as a required provider
+by this contract PR.
