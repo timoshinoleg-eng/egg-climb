@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Egg Climb — Visual Preset v1 demo</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0b1120; color: #e5e7eb; font: 14px/1.45 system-ui, sans-serif; }
+    #viewport { display: block; width: 100%; height: 100%; touch-action: none; }
+    #panel { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; right: 10px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; z-index: 5; }
+    #panel button { border: 1px solid #64748b; border-radius: 8px; background: #111827; color: #f8fafc; min-height: 40px; padding: 6px 12px; }
+    #panel button[aria-pressed="true"] { background: #92400e; border-color: #fbbf24; }
+    #toast { position: fixed; top: 64px; left: 0; right: 0; text-align: center; pointer-events: none; color: #fbbf24; font-weight: 600; text-shadow: 0 1px 6px #000; min-height: 1.4em; }
+    #hud { position: fixed; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; max-width: min(460px, 86vw); background: rgba(3, 7, 18, .78); border: 1px solid rgba(255,255,255,.16); border-radius: 10px; padding: 8px 10px; font-size: 12px; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/node_modules/three/build/three.module.js",
+      "three/addons/": "/node_modules/three/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="viewport" aria-label="Egg Climb Visual Preset v1 demo"></canvas>
+  <div id="panel">
+    <button id="bloomToggle" type="button" aria-pressed="true">Bloom accents</button>
+    <button id="qualityToggle" type="button" aria-pressed="true">Auto quality</button>
+    <button id="pbTrigger" type="button">PB accent</button>
+    <button id="pauseToggle" type="button" aria-pressed="false">Пауза</button>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="hud">loading…</div>
+  <script type="module" src="./juice-demo.js"></script>
+</body>
+</html>

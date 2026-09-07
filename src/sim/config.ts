@@ -13,7 +13,8 @@ export const RAPIER_VERSION = '0.20.0' as const
 export const REPLAY_PROTOCOL_VERSION = 3 as const
 export const FINGERPRINT_VERSION = 1 as const
 export const AUTHORITATIVE_STATE_VERSION = 4 as const
-export const WORKER_PROTOCOL_VERSION = 3 as const
+/** v4 adds ordered presentation events to SimulationFrame transport only. */
+export const WORKER_PROTOCOL_VERSION = 4 as const
 
 export const FOUNDATION_LEVEL_ID = 'foundation-ribbon-v1' as const
 export const FOUNDATION_LEVEL_VERSION = 1 as const

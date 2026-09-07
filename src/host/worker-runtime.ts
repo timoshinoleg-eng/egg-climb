@@ -18,6 +18,7 @@ import { createSimulationWithRapier } from '../sim/simulation-core.js'
 import { computePhysicsPresetHash, PHYSICS_V1 } from '../sim/physics-presets.js'
 import type { SimulationOptions } from '../sim/simulation-core.js'
 import type { Simulation } from '../sim/simulation-core.js'
+import { collectSimulationPresentationEvents } from './presentation-events.js'
 import { assertTickInputs } from './validation.js'
 import type { WorkerRequest, WorkerResponse, WorkerRuntimeInfo } from './worker-protocol.js'
 
@@ -46,6 +47,7 @@ export class SimulationWorkerRuntime {
   private current: SimulationSnapshot | undefined
   private closed = false
   private requestQueue: Promise<void> = Promise.resolve()
+  private attemptId = 0
 
   private readonly options: SimulationOptions
 
@@ -105,14 +107,16 @@ export class SimulationWorkerRuntime {
         assertTickInputs(request.inputs as readonly TickInput[])
         let previous = this.current
         let current = previous
+        const events: ReturnType<typeof collectSimulationPresentationEvents>[number][] = []
         for (const input of request.inputs) {
           previous = current
           this.simulation.step(input)
           current = this.simulation.snapshot()
+          events.push(...collectSimulationPresentationEvents(previous, current, this.attemptId))
         }
         this.previous = previous
         this.current = current
-        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'advanced', frame: { previous, current, stepped: request.inputs.length } }
+        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'advanced', frame: { previous, current, stepped: request.inputs.length, events } }
       }
 
       if (request.type === 'fingerprint') {
@@ -120,6 +124,7 @@ export class SimulationWorkerRuntime {
       }
 
       if (request.type === 'reset') {
+        this.attemptId += 1
         const snapshot = this.createFreshSimulation()
         return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'reset', snapshot }
       }
