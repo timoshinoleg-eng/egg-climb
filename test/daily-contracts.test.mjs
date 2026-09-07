@@ -87,17 +87,47 @@ test('canonical level and ruleset hashes match committed identities', async () =
   assert.equal(await canonicalRulesetSha256(), DAILY_RULESET_HASH)
 })
 
-test('canonical replay hash is order-independent and excludes client telemetry', async () => {
-  const fixture = {
-    header: { z: 2, a: 1 },
-    inputEvents: [{ tick: 0, seq: 0, kind: 'move', moveX: 0.5, moveZ: 0 }],
-    finishTick: 2,
-    clientFingerprint: 'deadbeef',
+test('canonical replay hash includes only authoritative v4 evidence', async () => {
+  const header = {
+    protocolVersion: 4,
+    simulationVersion: 'sim',
+    rapierPackage: 'rapier',
+    rapierVersion: '1',
+    fingerprintVersion: 1,
+    physicsPresetId: 'p',
+    physicsPresetVersion: 1,
+    physicsPresetHash: 'ph',
+    eggColliderId: 'e',
+    eggColliderVersion: 1,
+    eggColliderHash: 'eh',
+    feelPresetId: 'f',
+    feelPresetVersion: 1,
+    feelPresetHash: 'fh',
+    tickRate: 60,
+    levelId: 'l',
+    levelVersion: 1,
+    levelFormatVersion: 1,
+    levelHash: 'lh',
+    generatorVersion: 1,
+    rulesetHash: 'rh',
+    seed: 0,
+    dimensionMode: '3d',
+    controlMode: 'tap',
+    assistPresetId: 'none',
   }
+  const event = { tick: 0, seq: 0, kind: 'move', moveX: 0.5, moveZ: 0 }
+  const fixture = { header, inputEvents: [event], finishTick: 2, clientFingerprint: 'deadbeef' }
+  const expected = '353f1086f713080697ed46867345100a0cbabe09b0d70c8a28ef147948b5d0f8'
   assert.equal(canonicalJson({ z: 2, a: 1 }), canonicalJson({ a: 1, z: 2 }))
-  const expected = 'a01702fdfaec649a3c4f20418c06c7e53fd7881b0694cab8b183fc61c99d1e2e'
   assert.equal(await canonicalReplaySha256(fixture), expected)
-  assert.equal(await canonicalReplaySha256({ ...fixture, clientFingerprint: '00000000' }), expected)
+  assert.equal(await canonicalReplaySha256({
+    ...fixture,
+    header: { ...header, ignoredHeaderField: 'noise' },
+    inputEvents: [{ ...event, ignoredEventField: 'noise' }],
+    clientFingerprint: '00000000',
+    ignoredTopLevelField: 'noise',
+  }), expected)
+  assert.notEqual(await canonicalReplaySha256({ ...fixture, finishTick: 3 }), expected)
 })
 
 test('leaderboard comparator mirrors completed/partial ordering and stable run id tie-break', () => {
