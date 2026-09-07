@@ -55,7 +55,8 @@ create table if not exists runs (
   completion_tick          integer null,
   replay_finish_tick       integer not null check (replay_finish_tick > 0),
   fingerprint              text not null check (fingerprint ~ '^[0-9a-f]{8}$'),
-  replay_canonical         text not null check (octet_length(replay_canonical) between 2 and 262144),
+  -- Worst-case canonical replay: 10_000 move events x ~95 bytes + header < 1 MiB.
+  replay_canonical         text not null check (octet_length(replay_canonical) between 2 and 1048576),
   replay_sha256            text not null check (replay_sha256 ~ '^[0-9a-f]{64}$'),
   client_platform          text not null default 'unknown',
   created_at               timestamptz not null default now(),

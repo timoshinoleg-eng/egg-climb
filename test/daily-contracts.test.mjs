@@ -159,3 +159,28 @@ test('Postgres migration contains focused immutable/fixed-point/ranking invarian
   assert.equal(sql.includes('numeric(10, 2)'), false)
   assert.equal(sql.includes('replay_sha256 text not null unique'), false)
 })
+
+test('DB replay_canonical bound fits the worst-case structurally valid replay', async () => {
+  const sql = await readFile(new URL('../db/migrations/0001_leaderboard.sql', import.meta.url), 'utf8')
+  const match = sql.replace(/\s+/g, ' ').match(/replay_canonical text not null check \(octet_length\(replay_canonical\) between 2 and (\d+)\)/)
+  assert.ok(match, 'replay_canonical octet bound not found in migration')
+  const dbBound = Number(match[1])
+
+  // Densest replay accepted by DEFAULT_REPLAY_LIMITS: 10_000 move events with
+  // worst-case double rendering, 32 per tick, contiguous canonical seq.
+  const events = []
+  for (let index = 0; index < DEFAULT_REPLAY_LIMITS.maxInputEvents; index += 1) {
+    events.push({
+      tick: Math.floor(index / DEFAULT_REPLAY_LIMITS.maxInputEventsPerTick),
+      seq: index % DEFAULT_REPLAY_LIMITS.maxInputEventsPerTick,
+      kind: 'move',
+      moveX: -0.12345678901234567,
+      moveZ: -0.12345678901234567,
+    })
+  }
+  const worstCase = { header: defaultReplayHeader(), inputEvents: events, finishTick: DEFAULT_REPLAY_LIMITS.maxFinishTick }
+  assertReplay(worstCase) // passes structural admission...
+  const { canonicalReplayJson } = await import('../dist/server/daily-contracts.js')
+  const octets = Buffer.byteLength(canonicalReplayJson(worstCase), 'utf8')
+  assert.ok(octets <= dbBound, `canonical replay ${octets} octets exceeds DB bound ${dbBound}`) // ...so it must fit storage
+})
