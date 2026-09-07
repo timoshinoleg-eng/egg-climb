@@ -1,4 +1,4 @@
-import type { Replay } from '../sim/contracts.js'
+import type { Replay, ReplayInputEvent } from '../sim/contracts.js'
 import type { LevelDefinition } from '../sim/level.js'
 import { canonicalJson, sha256HexText } from './canonical-json.js'
 
@@ -25,14 +25,54 @@ export async function canonicalRulesetSha256(): Promise<string> {
   return sha256HexText(canonicalJson(DAILY_RULESET_DEFINITION))
 }
 
+function canonicalReplayInputEvent(event: ReplayInputEvent): unknown {
+  switch (event.kind) {
+    case 'move':
+      return { tick: event.tick, seq: event.seq, kind: event.kind, moveX: event.moveX, moveZ: event.moveZ }
+    case 'jump':
+      return { tick: event.tick, seq: event.seq, kind: event.kind, down: event.down }
+    case 'jump-cancel':
+      return { tick: event.tick, seq: event.seq, kind: event.kind }
+  }
+  throw new Error('Unsupported replay input event')
+}
+
 /**
- * Canonical authoritative replay evidence. clientFingerprint is deliberately
- * excluded: it is untrusted telemetry and must not change attempt identity.
+ * Canonical authoritative replay evidence. Runtime-only/unknown properties and
+ * clientFingerprint are deliberately excluded so ignored data cannot create a
+ * second accepted-attempt identity for the same authoritative replay.
  */
 export function canonicalReplayJson(replay: Replay): string {
+  const header = replay.header
   return canonicalJson({
-    header: replay.header,
-    inputEvents: replay.inputEvents,
+    header: {
+      protocolVersion: header.protocolVersion,
+      simulationVersion: header.simulationVersion,
+      rapierPackage: header.rapierPackage,
+      rapierVersion: header.rapierVersion,
+      fingerprintVersion: header.fingerprintVersion,
+      physicsPresetId: header.physicsPresetId,
+      physicsPresetVersion: header.physicsPresetVersion,
+      physicsPresetHash: header.physicsPresetHash,
+      eggColliderId: header.eggColliderId,
+      eggColliderVersion: header.eggColliderVersion,
+      eggColliderHash: header.eggColliderHash,
+      feelPresetId: header.feelPresetId,
+      feelPresetVersion: header.feelPresetVersion,
+      feelPresetHash: header.feelPresetHash,
+      tickRate: header.tickRate,
+      levelId: header.levelId,
+      levelVersion: header.levelVersion,
+      levelFormatVersion: header.levelFormatVersion,
+      levelHash: header.levelHash,
+      generatorVersion: header.generatorVersion,
+      rulesetHash: header.rulesetHash,
+      seed: header.seed,
+      dimensionMode: header.dimensionMode,
+      controlMode: header.controlMode,
+      assistPresetId: header.assistPresetId,
+    },
+    inputEvents: replay.inputEvents.map(canonicalReplayInputEvent),
     finishTick: replay.finishTick,
   })
 }
