@@ -160,27 +160,61 @@ test('Postgres migration contains focused immutable/fixed-point/ranking invarian
   assert.equal(sql.includes('replay_sha256 text not null unique'), false)
 })
 
-test('DB replay_canonical bound fits the worst-case structurally valid replay', async () => {
+test('DB replay_canonical bound fits the maximum admitted canonical replay', async () => {
   const sql = await readFile(new URL('../db/migrations/0001_leaderboard.sql', import.meta.url), 'utf8')
   const match = sql.replace(/\s+/g, ' ').match(/replay_canonical text not null check \(octet_length\(replay_canonical\) between 2 and (\d+)\)/)
   assert.ok(match, 'replay_canonical octet bound not found in migration')
   const dbBound = Number(match[1])
 
-  // Densest replay accepted by DEFAULT_REPLAY_LIMITS: 10_000 move events with
-  // worst-case double rendering, 32 per tick, contiguous canonical seq.
+  // Longest JSON number rendering for a validated move axis in [-1, 1]:
+  // sign + "0." + 5 leading zeros + 17 significant digits = 25 chars.
+  // (|x| < 1e-6 uses shorter exponent notation.)
+  const widestAxis = -0.0000031989640801661535
+  assert.equal(JSON.stringify(widestAxis).length, 25)
+  const widestEvent = { tick: 17999, seq: 31, kind: 'move', moveX: widestAxis, moveZ: widestAxis }
+  const widestEventOctets = Buffer.byteLength(JSON.stringify(widestEvent), 'utf8')
+  assert.ok(widestEventOctets <= 105, `widest event is ${widestEventOctets} octets`)
+
+  // Structural maximum admitted by DEFAULT_REPLAY_LIMITS: every event at the
+  // widest rendering, packed 32 per tick into the latest 5-digit ticks.
+  const { maxFinishTick, maxInputEvents, maxInputEventsPerTick } = DEFAULT_REPLAY_LIMITS
+  const packedTicks = Math.ceil(maxInputEvents / maxInputEventsPerTick)
   const events = []
-  for (let index = 0; index < DEFAULT_REPLAY_LIMITS.maxInputEvents; index += 1) {
+  for (let index = 0; index < maxInputEvents; index += 1) {
     events.push({
-      tick: Math.floor(index / DEFAULT_REPLAY_LIMITS.maxInputEventsPerTick),
-      seq: index % DEFAULT_REPLAY_LIMITS.maxInputEventsPerTick,
+      tick: maxFinishTick - packedTicks + Math.floor(index / maxInputEventsPerTick),
+      seq: index % maxInputEventsPerTick,
       kind: 'move',
-      moveX: -0.12345678901234567,
-      moveZ: -0.12345678901234567,
+      moveX: widestAxis,
+      moveZ: widestAxis,
     })
   }
-  const worstCase = { header: defaultReplayHeader(), inputEvents: events, finishTick: DEFAULT_REPLAY_LIMITS.maxFinishTick }
-  assertReplay(worstCase) // passes structural admission...
+  const maximumReplay = { header: defaultReplayHeader(), inputEvents: events, finishTick: maxFinishTick }
+  assertReplay(maximumReplay) // passes structural admission...
   const { canonicalReplayJson } = await import('../dist/server/daily-contracts.js')
-  const octets = Buffer.byteLength(canonicalReplayJson(worstCase), 'utf8')
-  assert.ok(octets <= dbBound, `canonical replay ${octets} octets exceeds DB bound ${dbBound}`) // ...so it must fit storage
+  const maximumOctets = Buffer.byteLength(canonicalReplayJson(maximumReplay), 'utf8')
+  assert.ok(maximumOctets <= dbBound, `maximum admitted canonical replay ${maximumOctets} octets exceeds DB bound ${dbBound}`) // ...so it must fit storage
+
+  // Conservative link: header + per-event maximum + separators must stay
+  // under the DB bound, so future ReplayLimits changes fail this test loudly
+  // instead of silently diverging from storage.
+  const headerOctets = Buffer.byteLength(canonicalReplayJson({ header: defaultReplayHeader(), inputEvents: [], finishTick: maxFinishTick }), 'utf8')
+  const structuralMax = headerOctets + maxInputEvents * (widestEventOctets + 1)
+  assert.ok(maximumOctets <= structuralMax)
+  assert.ok(structuralMax <= dbBound, `structural maximum ${structuralMax} octets exceeds DB bound ${dbBound}`)
+})
+
+test('adversarial spread-tick widest-value replay fits the DB bound', async () => {
+  // Regression: one widest-value move event per tick at ticks 8000..17999
+  // serialized to 1_048_798 octets and exceeded the previous 1 MiB bound.
+  const widestAxis = -0.0000031989640801661535
+  const events = []
+  for (let index = 0; index < DEFAULT_REPLAY_LIMITS.maxInputEvents; index += 1) {
+    events.push({ tick: 8000 + index, seq: 0, kind: 'move', moveX: widestAxis, moveZ: widestAxis })
+  }
+  const replay = { header: defaultReplayHeader(), inputEvents: events, finishTick: DEFAULT_REPLAY_LIMITS.maxFinishTick }
+  assertReplay(replay)
+  const { canonicalReplayJson } = await import('../dist/server/daily-contracts.js')
+  const octets = Buffer.byteLength(canonicalReplayJson(replay), 'utf8')
+  assert.ok(octets <= 2097152, `adversarial replay ${octets} octets exceeds DB bound`)
 })

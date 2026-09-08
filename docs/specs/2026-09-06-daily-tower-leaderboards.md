@@ -109,7 +109,10 @@ Core validation currently enforces, before simulation construction:
 
 These are reusable `ReplayLimits`; boundary and rejection cases are tested.
 The future HTTP layer additionally needs a request-body byte limit **before
-JSON parsing** and rate limiting before replay execution.
+JSON parsing** and rate limiting before replay execution. That body limit must
+admit at least the maximum canonical replay implied by `ReplayLimits`
+(≈1.01 MiB at the current limits; `runs.replay_canonical` allows 2 MiB),
+unless a smaller cap is made an explicit part of the HTTP admission contract.
 
 A synchronous `Promise.race([runReplay(), timeout])` is explicitly **not** a
 security timeout: it cannot interrupt CPU-bound Rapier work in the same JS
