@@ -18,7 +18,7 @@ function inputs() {
 
 async function localFingerprint(feel, script, chunks) {
   const scenario = physicsLabScenario('jump-base')
-  const host = new LocalSimulationHost({ preset: PHYSICS_V1, feel, level: scenario.level, initialEgg: scenario.initialEgg })
+  const host = new LocalSimulationHost({ preset: PHYSICS_V1, feel, fixtureStaticBoxes: scenario.level, initialEgg: scenario.initialEgg })
   try {
     await host.init()
     let cursor = 0

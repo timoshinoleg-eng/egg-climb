@@ -16,7 +16,7 @@ const JUMP = Object.freeze({ moveX: 0, moveZ: 0, jumpDown: true, jumpUp: false }
 
 async function withScenario(id, fn, preset = PHYSICS_V1) {
   const scenario = physicsLabScenario(id)
-  const simulation = await createSimulation({ preset, level: scenario.level, initialEgg: scenario.initialEgg })
+  const simulation = await createSimulation({ preset, fixtureStaticBoxes: scenario.level, initialEgg: scenario.initialEgg })
   try { return await fn(simulation) } finally { simulation.free() }
 }
 
@@ -132,7 +132,7 @@ test('broad-base 5-degree perturbation is stable while tip-biased perturbation f
   async function runTilt(id, position, rotation) {
     const scenario = physicsLabScenario(id)
     const initialEgg = { ...scenario.initialEgg, position, rotation }
-    const simulation = await createSimulation({ level: scenario.level, initialEgg })
+    const simulation = await createSimulation({ fixtureStaticBoxes: scenario.level, initialEgg })
     try {
       const initialUpY = localUpY(simulation.snapshot())
       let maxAngular = 0

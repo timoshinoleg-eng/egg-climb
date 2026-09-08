@@ -1,21 +1,14 @@
 import type { FeelState, FeelJump } from './feel-controller.js'
 import { DEFAULT_FEEL, computeFeelPresetHash } from './feel-presets.js'
 import type { FeelPreset } from './feel-presets.js'
+import { FOUNDATION_LEVEL } from './level.js'
+import type { ResolvedLevel } from './level.js'
 import {
   DAILY_RULESET_HASH,
   EGG_COLLIDER_HASH,
   EGG_COLLIDER_ID,
   EGG_COLLIDER_VERSION,
   FINGERPRINT_VERSION,
-  FOUNDATION_ASSIST_PRESET_ID,
-  FOUNDATION_CONTROL_MODE,
-  FOUNDATION_DIMENSION_MODE,
-  FOUNDATION_GENERATOR_VERSION,
-  FOUNDATION_LEVEL_FORMAT_VERSION,
-  FOUNDATION_LEVEL_HASH,
-  FOUNDATION_LEVEL_ID,
-  FOUNDATION_LEVEL_VERSION,
-  FOUNDATION_SEED,
   PHYSICS_HZ,
   PHYSICS_PRESET_HASH,
   PHYSICS_PRESET_ID,
@@ -116,6 +109,10 @@ export interface SimulationSnapshot {
     eggColliderId: string
     eggColliderVersion: number
     eggColliderHash: string
+    levelId: string
+    levelVersion: number
+    levelFormatVersion: number
+    levelHash: string
   }>
   readonly position: Vector3Snapshot
   readonly rotation: Readonly<{ x: number; y: number; z: number; w: number }>
@@ -123,6 +120,12 @@ export interface SimulationSnapshot {
   readonly angularVelocity: Vector3Snapshot
   readonly feel: Readonly<FeelState> & Readonly<{ lastJumpTick: number; lastJumpSource: FeelJump['source'] | null; lastJumpStrength: number }>
   readonly physics: PhysicsDebugSnapshot
+  readonly gameplay: Readonly<{
+    completionTick: number | null
+    launchZoneInside: readonly boolean[]
+    activeContinuousForceZoneIds: readonly string[]
+    activatedLaunchZoneIds: readonly string[]
+  }>
 }
 
 export interface EggInitialState {
@@ -132,7 +135,7 @@ export interface EggInitialState {
   readonly angularVelocity: readonly [number, number, number]
 }
 
-export function defaultReplayHeader(feel: FeelPreset = DEFAULT_FEEL): ReplayHeader {
+export function replayHeaderForLevel(level: ResolvedLevel, feel: FeelPreset = DEFAULT_FEEL): ReplayHeader {
   return {
     protocolVersion: REPLAY_PROTOCOL_VERSION,
     simulationVersion: SIMULATION_VERSION,
@@ -149,15 +152,19 @@ export function defaultReplayHeader(feel: FeelPreset = DEFAULT_FEEL): ReplayHead
     feelPresetVersion: feel.version,
     feelPresetHash: computeFeelPresetHash(feel),
     tickRate: PHYSICS_HZ,
-    levelId: FOUNDATION_LEVEL_ID,
-    levelVersion: FOUNDATION_LEVEL_VERSION,
-    levelFormatVersion: FOUNDATION_LEVEL_FORMAT_VERSION,
-    levelHash: FOUNDATION_LEVEL_HASH,
-    generatorVersion: FOUNDATION_GENERATOR_VERSION,
-    rulesetHash: DAILY_RULESET_HASH,
-    seed: FOUNDATION_SEED,
+    levelId: level.id,
+    levelVersion: level.version,
+    levelFormatVersion: level.formatVersion,
+    levelHash: level.hash,
+    generatorVersion: level.generatorVersion,
+    rulesetHash: level.rulesetHash,
+    seed: level.seed,
     dimensionMode: feel.dimensionMode,
     controlMode: feel.controlMode,
     assistPresetId: feel.bufferTicks || feel.coyoteTicks || feel.tipHoldTicks ? feel.id : 'none',
   }
+}
+
+export function defaultReplayHeader(feel: FeelPreset = DEFAULT_FEEL): ReplayHeader {
+  return replayHeaderForLevel(FOUNDATION_LEVEL, feel)
 }

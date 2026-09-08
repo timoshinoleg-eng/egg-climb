@@ -14,8 +14,10 @@ export const RAPIER_VERSION = '0.20.0' as const
 export const REPLAY_PROTOCOL_VERSION = 4 as const
 export const FINGERPRINT_VERSION = 1 as const
 export const AUTHORITATIVE_STATE_VERSION = 4 as const
-/** v4 adds ordered presentation events to SimulationFrame transport only. */
-export const WORKER_PROTOCOL_VERSION = 4 as const
+/** Tagged lifecycle schema used only by LevelDefinition v2 authoritative bytes. */
+export const LEVEL_GAMEPLAY_STATE_VERSION = 1 as const
+/** v5 binds the selected authoritative level identity in the Worker handshake. */
+export const WORKER_PROTOCOL_VERSION = 5 as const
 
 export const FOUNDATION_LEVEL_ID = 'foundation-ribbon-v1' as const
 export const FOUNDATION_LEVEL_VERSION = 1 as const
@@ -24,6 +26,13 @@ export const FOUNDATION_GENERATOR_VERSION = 1 as const
 /** SHA-256 of canonical FOUNDATION_LEVEL_DEFINITION (see server daily-contract tests). */
 export const FOUNDATION_LEVEL_HASH = 'c3c2f95791cfe85873ada154ebfc8d83bf74c8f6ed439e245cc89646b93191e2' as const
 export const FOUNDATION_SEED = 0 as const
+export const KITCHEN_LEVEL_ID = 'kitchen-escape-v1' as const
+export const KITCHEN_LEVEL_VERSION = 1 as const
+export const KITCHEN_LEVEL_FORMAT_VERSION = 2 as const
+export const KITCHEN_GENERATOR_VERSION = 1 as const
+/** SHA-256 of canonical KITCHEN_LEVEL_DEFINITION. */
+export const KITCHEN_LEVEL_HASH = 'a12754a5ad005892d31fa8563c33ec9260256b5b6fecf4498271f010edc92b62' as const
+export const KITCHEN_SEED = 0 as const
 export const FOUNDATION_DIMENSION_MODE = '3d' as const
 export const FOUNDATION_CONTROL_MODE = 'tap' as const
 export const FOUNDATION_ASSIST_PRESET_ID = 'none' as const

@@ -31,7 +31,7 @@ test('corner support is independent of floor/wall pair order', async () => {
   const scenario = physicsLabScenario('corner-multiple-contact')
   const snapshots = []
   for (const level of [scenario.level, [...scenario.level].reverse()]) {
-    const sim = await createSimulation({ level, initialEgg: scenario.initialEgg })
+    const sim = await createSimulation({ fixtureStaticBoxes: level, initialEgg: scenario.initialEgg })
     try { sim.step(neutral); snapshots.push(sim.snapshot()) } finally { sim.free() }
   }
   for (const s of snapshots) { assert.equal(s.physics.grounded, true); assert.ok(s.physics.supportNormal.y > 0.9); assert.ok(s.physics.contactT < 0.2) }
@@ -53,7 +53,7 @@ test('caller mutation cannot alter future ticks or host reset settings', async (
 
 test('cached post-jump manifold cannot grant a second impulse in the air', async () => {
   const scene = physicsLabScenario('jump-tip')
-  const sim = await createSimulation({ level: scene.level, initialEgg: scene.initialEgg })
+  const sim = await createSimulation({ fixtureStaticBoxes: scene.level, initialEgg: scene.initialEgg })
   try {
     sim.step(neutral)
     sim.step({ ...neutral, jumpDown: true })

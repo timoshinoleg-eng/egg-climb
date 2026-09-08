@@ -18,6 +18,7 @@ export type SimulationPresentationEventKind =
   | 'hard-land'
   | 'fail'
   | 'checkpoint'
+  | 'launch'
   | 'finish'
 
 export interface SimulationPresentationEventBase {
@@ -64,12 +65,18 @@ export interface FinishEvent extends SimulationPresentationEventBase {
   readonly kind: 'finish'
 }
 
+export interface LaunchEvent extends SimulationPresentationEventBase {
+  readonly kind: 'launch'
+  readonly zoneId: string
+}
+
 export type SimulationPresentationEvent =
   | JumpEvent
   | LandEvent
   | HardLandEvent
   | FailEvent
   | CheckpointEvent
+  | LaunchEvent
   | FinishEvent
 
 export interface PersonalBestEvent {

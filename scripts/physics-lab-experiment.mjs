@@ -3,7 +3,7 @@ const neutral = { moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false }
 const upY = s => 1 - 2 * (s.rotation.x * s.rotation.x + s.rotation.z * s.rotation.z)
 export async function measureTilt(preset, tip = false) {
   const scenario = physicsLabScenario('broad-base-rest')
-  const sim = await createSimulation({ preset, level: scenario.level, initialEgg: { ...scenario.initialEgg,
+  const sim = await createSimulation({ preset, fixtureStaticBoxes: scenario.level, initialEgg: { ...scenario.initialEgg,
     position: [0, tip ? 0.82 : 0.64, 0], rotation: tip ? [0,0,0.9990482216,-0.0436193874] : [0,0,0.0436193874,0.9990482216] } })
   try {
     let peakAngular = 0
@@ -13,7 +13,7 @@ export async function measureTilt(preset, tip = false) {
 }
 export async function measureJump(preset, id) {
   const scene = physicsLabScenario(id)
-  const sim = await createSimulation({ preset, level: scene.level, initialEgg: scene.initialEgg })
+  const sim = await createSimulation({ preset, fixtureStaticBoxes: scene.level, initialEgg: scene.initialEgg })
   try {
     let before
     for (let t = 0; t < 180; t++) { sim.step(neutral); before = sim.snapshot(); if (before.physics.grounded) break }
@@ -36,7 +36,7 @@ export async function measureJump(preset, id) {
 }
 export async function measureControl(preset, moveX) {
   const scene = physicsLabScenario('broad-base-rest')
-  const sim = await createSimulation({ preset, level: scene.level, initialEgg: scene.initialEgg })
+  const sim = await createSimulation({ preset, fixtureStaticBoxes: scene.level, initialEgg: scene.initialEgg })
   try { for (let t = 0; t < 90; t++) sim.step({ ...neutral, moveX }); return sim.snapshot().position.x } finally { sim.free() }
 }
 export async function experimentMatrix() {

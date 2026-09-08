@@ -10,6 +10,8 @@ import {
   PHYSICS_V1,
   WORKER_PROTOCOL_VERSION,
   physicsLabScenario,
+  KITCHEN_LEVEL,
+  KITCHEN_LEVEL_DEFINITION,
 } from '../dist/sim/index.js'
 import { initPhysics, RAPIER } from '../dist/sim/rapier.js'
 
@@ -58,6 +60,34 @@ test('typed worker runtime is fail-closed and preserves queued ordering after co
   assert.match(afterFree.message, /closed/)
 })
 
+test('Kitchen Local and Worker bind exact level identity and reset lifecycle state', async () => {
+  await initPhysics()
+  const zone = KITCHEN_LEVEL_DEFINITION.launchZones[0]
+  const initialEgg = { position: zone.center, rotation: [0, 0, 0, 1], linearVelocity: [0, 0, 0], angularVelocity: [0, 0, 0] }
+  const options = { level: KITCHEN_LEVEL, initialEgg }
+  const local = new LocalSimulationHost(options)
+  const runtime = new SimulationWorkerRuntime(RAPIER, options)
+  try {
+    const localInitial = await local.init()
+    const workerInitial = await runtime.enqueue(request(200, { type: 'init' }))
+    assert.equal(workerInitial.type, 'initialized')
+    assert.equal(workerInitial.runtimeInfo.levelId, KITCHEN_LEVEL.id)
+    assert.equal(workerInitial.runtimeInfo.levelHash, KITCHEN_LEVEL.hash)
+    assert.deepEqual(workerInitial.snapshot, localInitial)
+    const localFrame = await local.advance([NEUTRAL, NEUTRAL])
+    const workerFrame = await runtime.enqueue(request(201, { type: 'advance', inputs: [NEUTRAL, NEUTRAL] }))
+    assert.equal(workerFrame.type, 'advanced')
+    assert.deepEqual(workerFrame.frame, localFrame)
+    assert.equal((await runtime.enqueue(request(202, { type: 'fingerprint' }))).fingerprint, await local.fingerprint())
+    const localReset = await local.reset()
+    const workerReset = await runtime.enqueue(request(203, { type: 'reset' }))
+    assert.equal(workerReset.type, 'reset')
+    assert.deepEqual(workerReset.snapshot, localReset)
+    assert.deepEqual(localReset.gameplay.launchZoneInside, [false])
+    assert.equal(localReset.gameplay.completionTick, null)
+  } finally { await local.free(); await runtime.enqueue(request(204, { type: 'free' })) }
+})
+
 function eventPosition(event) {
   return [event.attemptId, event.tick, event.ordinal]
 }
@@ -77,7 +107,7 @@ test('Local and Worker emit the same ordered multi-event stream without batch-ed
   const options = {
     preset: PHYSICS_V1,
     feel: FEEL_PRESETS['3d-tap'],
-    level: scenario.level,
+    fixtureStaticBoxes: scenario.level,
     initialEgg: scenario.initialEgg,
   }
   const inputs = [

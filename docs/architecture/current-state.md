@@ -115,7 +115,7 @@ oversized input batches are rejected.
 The worker has a typed request/response protocol for initialization, advance,
 fingerprint, reset, and free. Its initialization handshake proves the protocol,
 simulation, Rapier, physics, collider, and feel identities before it is trusted.
-Worker requests are serialized in posting order, so concurrent promises cannot
+The handshake also binds the resolved level id, version, format, and canonical hash. Worker requests are serialized in posting order, so concurrent promises cannot
 reorder lifecycle operations. Reset starts a new attempt identity; free is
 idempotent at the host boundary.
 
@@ -153,9 +153,9 @@ The precise validation and canonicalization rules are in
 
 ## 8. LevelDefinition
 
-**Current.** `LevelDefinition` is intentionally small: identity/version,
-format version, origin, and ordered static boxes with geometry and friction.
-The Foundation ribbon is a committed instance of this format. Canonical JSON
+**Current.** Foundation remains format v1. Kitchen format v2 adds ordered
+kinematic boxes, continuous-force zones, edge-triggered launch zones, and
+Finish volumes. Both are committed trusted levels. Canonical JSON
 preserves array order, sorts object keys, rejects non-JSON/sparse values, and
 feeds the level SHA-256 identity.
 
@@ -171,10 +171,8 @@ must bind the exact canonical level text and its hash. See
 [`src/sim/level.ts`](../../src/sim/level.ts) and the
 [Daily contract](../specs/2026-09-06-daily-tower-leaderboards.md).
 
-**Planned / not implemented.** Kitchen-specific primitives or a procedural
-Daily schema are not part of the current format. New supported level features
-must be introduced through an explicit format evolution, not guessed into this
-foundation contract.
+Replay identity resolves only to those committed descriptors; client-supplied
+level definitions are not trusted. Procedural Daily generation remains absent.
 
 ## 9. Physics and game feel
 
@@ -236,8 +234,8 @@ derives historical maximum height in fixed-point millimetres. Ties preserve the
 first tick at maximum height. Render rate, presentation events, and claimed
 client score do not participate.
 
-The Foundation level has no authoritative Finish semantic. `runReplay()`
-therefore does not invent completion, and mixed leaderboard ordering defines
+Kitchen v2 has an authoritative post-step Finish latch; Foundation has no
+Finish and remains incomplete. Mixed leaderboard ordering defines
 how future completed and incomplete accepted runs rank. Daily identity binds a
 UTC date to immutable canonical level text/hash plus level, generator, and
 ruleset identity. A published Daily is intended to be insert-once immutable.
@@ -313,9 +311,8 @@ iOS WKWebView smoke. Workflows live in [CI](../../.github/workflows/ci.yml) and
 - Production Daily generator and atomic Daily publication flow.
 - Production HTTP replay submission and leaderboard read APIs.
 - A killable production replay executor plus HTTP admission/rate-limit layer.
-- An authoritative Finish/goal semantic.
+- A rendered/playable Kitchen graybox and production Kitchen art/content.
 - Local or network ghost gameplay.
-- A production Kitchen level and Kitchen art/content.
 - A final player-selected game-feel winner or full production renderer.
 
 ## 16. Architectural rules for future changes
