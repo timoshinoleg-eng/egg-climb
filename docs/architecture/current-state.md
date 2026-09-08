@@ -39,19 +39,23 @@ worlds or on the level format.
 
 ```text
 Input / Mini App shell
-        ↓ fixed-tick input samples
-SimulationHost (Local or Worker)
-        ↓ authoritative snapshots + ordered PresentationEvents
-Headless deterministic simulation
+        ↓ sampled TickInputs
+SimulationHost (Local / Worker transport)
         ↓
+Headless deterministic simulation
+        ↓ authoritative snapshots
+SimulationHost
+        ↓ SimulationFrame + ordered PresentationEvents
 Renderer / UI / presentation-only effects
 
-Replay ──canonical tick input evidence + identity──↔ deterministic simulation
+Replay
+        ↔ deterministic simulation
 
 Planned server acceptance
-        ↓ validate replay and Daily identity
+        ↓ replay + Daily validation
         ↓ killable authoritative replay execution
-        ↓ canonical score and leaderboard persistence
+        ↓ canonical score
+        ↓ leaderboard persistence
 ```
 
 The authoritative core is under [`src/sim`](../../src/sim); its consumer-facing
@@ -220,7 +224,9 @@ resources/listeners are released, context loss stops optional rendering safely,
 and restoration resumes direct rendering before any optional post-processing is
 rebuilt. See the [Visual Preset v1 spec](../specs/2026-09-06-visual-preset-v1.md),
 [`src/presentation/events.ts`](../../src/presentation/events.ts), and
-[`src/render/juice.ts`](../../src/render/juice.ts).
+[`src/render/juice.ts`](../../src/render/juice.ts). The Three.js integration for
+the camera shake layer, bloom composer, context handling, and resource disposal
+is in [`debug/juice-view.js`](../../debug/juice-view.js).
 
 ## 11. Competitive score and Daily contracts
 
@@ -276,9 +282,11 @@ budgets and effect behavior belong in the [Visual Preset spec](../specs/2026-09-
 
 CI typechecks and runs Node tests—including deterministic core, replay,
 host/worker, scoring, contracts, and renderer lifecycle checks—on Linux x64,
-Windows x64, and macOS ARM64. Browser coverage runs the deterministic and
-playtest surfaces in Chromium, Firefox, and WebKit. Property tests complement,
-but do not replace, golden parity across engines and architectures.
+Windows x64, and macOS ARM64. Deterministic replay/worker and non-rendered feel
+parity run across Chromium, Firefox, and WebKit. Rendered WebGL UI, MAX
+mobile-shell, and packaged-playtest smoke coverage is currently Chromium-only.
+Property tests complement, but do not replace, golden parity across engines and
+architectures.
 
 The MAX packaging/browser suite checks the opt-in playtest shell separately.
 Playwright WebKit is portability evidence, not a substitute for a real MAX or
