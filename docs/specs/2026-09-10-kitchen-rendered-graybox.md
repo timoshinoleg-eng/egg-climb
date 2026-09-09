@@ -42,7 +42,7 @@ The graybox uses only Three.js primitives. External asset packs are deliberately
 
 The default playtest feel is `2d-tap-assist`, keeping the first Kitchen test focused on horizontal route readability rather than depth steering. Desktop controls are Left/Right or A/D plus Space. Mobile controls provide Left, Right and Jump.
 
-The feel preset is a playtest choice, not a new simulation contract, and may be overridden by query string.
+Kitchen v0.1 intentionally accepts only the existing 2.5D feel presets (`2d-tap`, `2d-hold`, `2d-tap-assist`, `2d-hold-assist`). A query requesting a 3D or otherwise unsupported feel is normalized to `2d-tap-assist` before the simulation module loads. This keeps the intentionally narrow cutaway visual footprint aligned with the tested traversal lane. It is a presentation/playtest constraint, not a new simulation contract.
 
 ## Retry and playtest telemetry
 
