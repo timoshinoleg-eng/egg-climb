@@ -16,7 +16,7 @@ Canvas 2D только отображает planar Rapier-позы; отдель
 - **PR:** https://github.com/timoshinoleg-eng/egg-climb/pull/13 — ready for review.
 - **Ветка:** `arena/01a087f3-egg-climb`, закреплённая за Arena-сессией.
 - **Baseline SHA:** `ec520776c2ca186bd10d3959d723670ee7e30856`.
-- **Проверенный код:** `58dbadba996bbed1ce4df04b91cfe591b59cceca`.
+- **Runtime-код основной поставки:** `58dbadba996bbed1ce4df04b91cfe591b59cceca`.
 - **Полный CI:** https://github.com/timoshinoleg-eng/egg-climb/actions/runs/34407859412 — SUCCESS.
 - **Коммиты:** `a9719e3` — core; `c4f1b9a` — visuals; `58dbadb` — tests.
 - Новых production/dev-зависимостей и скачанных art-паков в проект не добавлено.
@@ -83,7 +83,7 @@ sinks. Реальных `.env`/секретов среди коммитов не
 | --- | --- |
 | `npm ci`, Node 22 | PASS |
 | `npm run build` / strict TypeScript | PASS |
-| `npm test` локально | **132 PASS**, 0 failed/skipped; было 95 |
+| `npm test` локально | **134 PASS**, 0 failed/skipped; было 95 |
 | AST determinism + существующие golden/replay проверки | PASS; ожидаемые fingerprints не переписаны |
 | Chromium Playwright локально | **15 PASS** |
 | Node CI: Linux x64 / Windows x64 / macOS arm64 | **PASS / PASS / PASS** |
@@ -105,6 +105,22 @@ Firefox/WebKit не стартовали из-за отсутствующих б
 Debian mirrors. После обсуждения пользователь попросил продолжить через draft PR
 и GitHub Actions. Там браузеры установились и полный CI прошёл; только после этого
 PR переведён в ready for review. Локальный environment failure не переименован в PASS.
+
+### Дополнительный проход после поставки
+
+Добавлены ещё две постоянные регрессии без изменения runtime-кода и баланса:
+
+- **100 быстрых рестартов** с очередью управления и одновременными запросами:
+  точное восстановление snapshots/fingerprint, нулевой score/combo, пустая очередь.
+- **Все 9 платформ Cloud Garden** пройдены реальными inputs. Для каждой требуется
+  не менее 12 последовательных тиков устойчивой опоры внутри платформы: касание
+  ребра не считается доказательством проходимости. Повтор тех же inputs через
+  `ArcadeRun` даёт `summit` на тике **1728** (28.8 секунды симуляции), **1900 очков**,
+  combo **5**, bonus **350**. Телепортации и обхода collision logic нет.
+
+Итого локально **134 unit PASS**. Текущая матрица расширенной ветки доступна в
+[PR #13 Checks](https://github.com/timoshinoleg-eng/egg-climb/pull/13/checks).
+Замеры FPS ниже относятся к исходной поставке, а не к новому физическому устройству.
 
 ### Измерение производительности
 

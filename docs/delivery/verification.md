@@ -6,7 +6,7 @@
 | --- | --- |
 | Node environment | 22.22.3 / Linux x64, matches `.nvmrc` |
 | TypeScript build | PASS |
-| `npm test` | **132 PASS, 0 failed, 0 skipped** (95 baseline + 37 regressions) |
+| `npm test` | **134 PASS, 0 failed, 0 skipped** (95 baseline + 39 regressions) |
 | Deterministic AST boundary | PASS |
 | Historical golden replay / fingerprints | PASS, expected values unchanged |
 | Chromium Playwright suite | **15 PASS**, including all 7 new arcade scenarios |
@@ -60,7 +60,7 @@ proceeded through a **draft PR first**, with the remaining gate evaluated on
 GitHub Actions. This was an exception to the original strict step 4 → step 5
 order, not a claim that missing local browser runs passed.
 
-## Full CI gate resolved
+## Initial delivery CI gate resolved
 
 [PR #13](https://github.com/timoshinoleg-eng/egg-climb/pull/13) is ready for review.
 [CI run 34407859412](https://github.com/timoshinoleg-eng/egg-climb/actions/runs/34407859412)
@@ -84,3 +84,23 @@ available directly at the run link above.
 No merge or production deployment was performed. See the full
 [Engineering & Visual Delivery Report](./engineering-visual-report.md) for
 changes, source/license-checked recommendations and deployment instructions.
+
+
+## Additional verification after delivery
+
+Two further permanent regressions are in `test/arcade-run.test.mjs`:
+
+- **100 restart cycles** with queued directional/jump input and simultaneous
+  restart requests. Each round restores both snapshots, zero score/combo, empty
+  queue and the exact original fingerprint.
+- **Full Cloud Garden reachability** using legal steering/jump inputs. Every one
+  of the nine leaves must retain at least 12 consecutive stable supporting ticks
+  with the egg inside the ledge, rather than counting a glancing corner contact.
+  The same inputs are then replayed through `ArcadeRun`: `summit` at tick **1728**
+  (28.8 seconds of simulation), **1900 points**, combo **5**, bonus **350**.
+
+Local build, determinism policy and **134 unit tests pass**. Runtime code, level,
+physics presets and existing golden values are unchanged by this follow-up.
+The previously measured rendering budget is therefore not a new performance
+measurement. Current branch CI is linked from
+[PR #13 Checks](https://github.com/timoshinoleg-eng/egg-climb/pull/13/checks).

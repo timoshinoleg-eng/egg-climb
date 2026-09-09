@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ArcadeRun } from '../dist/game/arcade-run.js'
 import { LocalSimulationHost } from '../dist/host/local-host.js'
-import { ARCADE_OPTIONS } from '../dist/game/arcade-level.js'
+import { ARCADE_OPTIONS, ARCADE_LEVEL } from '../dist/game/arcade-level.js'
 import { NEUTRAL_INPUT } from '../dist/sim/contracts.js'
 
 const initial = () => ({ tick:0,position:{x:0,y:0.72,z:0},rotation:{x:0,y:0,z:0,w:1},linearVelocity:{x:0,y:0,z:0},angularVelocity:{x:0,y:0,z:0},physics:{grounded:true,supportContactWorld:{x:0,y:0,z:0}} })
@@ -104,4 +104,90 @@ test('real gameplay and repeated resets restore pose, velocities, feel, score an
       assert.equal(await host.fingerprint(),hash);assert.equal(game.score.points,0);assert.equal(game.score.combo,0)
     }
   }finally{await game.dispose()}
+})
+
+
+test('100 queued-input and simultaneous restart cycles restore the exact initial run', async () => {
+  const host = new LocalSimulationHost(ARCADE_OPTIONS)
+  const game = new ArcadeRun(host)
+  await game.init()
+  const spawn = game.current
+  const fingerprint = await host.fingerprint()
+  try {
+    for (let round = 0; round < 100; round++) {
+      game.start()
+      game.tick(0.1, () => ({ ...NEUTRAL_INPUT, moveX: round % 2 ? 1 : -1, jumpDown: true }))
+      await Promise.all([game.restart(), game.restart()])
+      assert.equal(game.phase, 'ready')
+      assert.equal(game.pendingCount, 0)
+      assert.equal(game.score.points, 0)
+      assert.equal(game.score.combo, 0)
+      assert.deepEqual(game.current, spawn)
+      assert.deepEqual(game.previous, spawn)
+      assert.equal(await host.fingerprint(), fingerprint)
+    }
+  } finally { await game.dispose() }
+})
+
+test('every garden leaf supports a stable landing and legal inputs reach the arcade summit', async () => {
+  // This committed steering plan was found by replaying legal inputs from tick
+  // zero. It does not teleport bodies, alter a fixture, or bypass collisions.
+  // Keep it explicit so accidental level/feel changes cannot silently pass.
+  const plan = [
+    { runup: 6, air: 125 }, { runup: 0, air: 108 }, { runup: 12, air: 81 },
+    { runup: 6, air: 90 }, { runup: 12, air: 73 }, { runup: 0, air: 71 },
+    { runup: 18, air: 85 }, { runup: 0, air: 78 }, { runup: 0, air: 84 },
+  ]
+  assert.equal(plan.length, ARCADE_LEVEL.staticBoxes.length - 1)
+  const host = new LocalSimulationHost(ARCADE_OPTIONS)
+  const inputs = []
+  let current = await host.init()
+  const steer = goalX => Math.max(-1, Math.min(1,
+    (goalX - current.position.x) * 1.4 - current.linearVelocity.x * 0.65,
+  ))
+  const step = async input => {
+    inputs.push(input)
+    current = (await host.advance([input])).current
+  }
+  try {
+    for (let index = 0; index < plan.length; index++) {
+      const source = ARCADE_LEVEL.staticBoxes[index]
+      const goal = ARCADE_LEVEL.staticBoxes[index + 1]
+      const top = goal.center[1] + goal.halfExtents[1]
+      for (let tick = 0; tick < 100; tick++) await step({ ...NEUTRAL_INPUT, moveX: steer(source.center[0]) })
+      assert.equal(current.physics.grounded, true, `grounded before jump ${index + 1}`)
+      for (let tick = 0; tick < plan[index].runup; tick++) await step({ ...NEUTRAL_INPUT, moveX: steer(goal.center[0]) })
+      await step({ ...NEUTRAL_INPUT, moveX: steer(goal.center[0]), jumpDown: true })
+      let stableTicks = 0
+      for (let tick = 0; tick < plan[index].air; tick++) {
+        await step({ ...NEUTRAL_INPUT, moveX: steer(goal.center[0]), jumpUp: tick === 0 })
+        // A single glancing corner contact must not count as a solved ledge.
+        const stable = current.physics.grounded &&
+          (current.physics.supportContactWorld?.y ?? -Infinity) >= top - 0.03 &&
+          Math.abs(current.position.x - goal.center[0]) < goal.halfExtents[0] - 0.15 &&
+          (current.physics.supportNormal?.y ?? 0) > 0.75
+        stableTicks = stable ? stableTicks + 1 : 0
+      }
+      assert.ok(stableTicks >= 12, `stable landing on leaf ${index + 1}`)
+    }
+  } finally { await host.free() }
+
+  // Run the very same input evidence through the product lifecycle/scorer.
+  const game = new ArcadeRun(new LocalSimulationHost(ARCADE_OPTIONS))
+  await game.init()
+  game.start()
+  try {
+    for (const input of inputs) {
+      game.tick(1 / 60, () => input)
+      await game.settled()
+      if (game.phase === 'over') break
+    }
+    assert.equal(game.phase, 'over')
+    assert.equal(game.reason, 'summit')
+    assert.equal(game.current.tick, 1728)
+    assert.equal(game.score.points, 1900)
+    assert.equal(game.score.combo, 5)
+    assert.equal(game.score.bonus, 350)
+    assert.equal(game.pendingCount, 0)
+  } finally { await game.dispose() }
 })
