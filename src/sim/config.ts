@@ -31,7 +31,7 @@ export const KITCHEN_LEVEL_VERSION = 1 as const
 export const KITCHEN_LEVEL_FORMAT_VERSION = 2 as const
 export const KITCHEN_GENERATOR_VERSION = 1 as const
 /** SHA-256 of canonical KITCHEN_LEVEL_DEFINITION. */
-export const KITCHEN_LEVEL_HASH = 'a12754a5ad005892d31fa8563c33ec9260256b5b6fecf4498271f010edc92b62' as const
+export const KITCHEN_LEVEL_HASH = '57b36be8e02628c558a5599727ae14e37201b91adbfcfd6549d5cf5ab422d6d3' as const
 export const KITCHEN_SEED = 0 as const
 export const FOUNDATION_DIMENSION_MODE = '3d' as const
 export const FOUNDATION_CONTROL_MODE = 'tap' as const
