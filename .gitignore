@@ -4,3 +4,12 @@ test-results/
 playwright-report/
 *.log
 build/
+
+# Local secrets and delivery/test artifacts
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+blob-report/
+patch-*.diff

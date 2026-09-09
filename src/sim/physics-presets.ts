@@ -19,6 +19,8 @@ export interface PhysicsPreset {
   }>
   readonly controls: Readonly<{
     torqueImpulse: number
+    /** Opt-in arcade steering. Undefined preserves every existing replay. */
+    driveImpulse?: number
   }>
   readonly support: Readonly<{
     minUpDot: number
@@ -66,11 +68,14 @@ export const PHYSICS_V1: PhysicsPreset = Object.freeze({
 
 export function canonicalPhysicsPreset(preset: PhysicsPreset): string {
   const inertia = preset.egg.principalInertia
-  return `${preset.id}|${preset.version}|${preset.gravityY}|${preset.egg.mass}|${preset.egg.centerOfMassY}|${inertia[0]},${inertia[1]},${inertia[2]}|${preset.egg.friction}|${preset.egg.restitution}|${preset.egg.linearDamping}|${preset.egg.angularDamping}|${preset.egg.ccd ? 1 : 0}|${preset.controls.torqueImpulse}|${preset.support.minUpDot}|${preset.support.maxContactDistance}|${preset.jump.baseImpulse}|${preset.jump.tipImpulse}|${preset.jump.directionModel}|${preset.jump.worldUpWeight}|${preset.jump.contactNormalWeight}|${preset.jump.curve}`
+  const drive = preset.controls.driveImpulse === undefined ? '' : `|drive:${preset.controls.driveImpulse}`
+  return `${preset.id}|${preset.version}|${preset.gravityY}|${preset.egg.mass}|${preset.egg.centerOfMassY}|${inertia[0]},${inertia[1]},${inertia[2]}|${preset.egg.friction}|${preset.egg.restitution}|${preset.egg.linearDamping}|${preset.egg.angularDamping}|${preset.egg.ccd ? 1 : 0}|${preset.controls.torqueImpulse}|${preset.support.minUpDot}|${preset.support.maxContactDistance}|${preset.jump.baseImpulse}|${preset.jump.tipImpulse}|${preset.jump.directionModel}|${preset.jump.worldUpWeight}|${preset.jump.contactNormalWeight}|${preset.jump.curve}${drive}`
 }
 
 /** Copy nested values so caller-owned options cannot change future ticks. */
 export function immutablePhysicsPreset(preset: PhysicsPreset): PhysicsPreset {
+  const drive = preset.controls.driveImpulse
+  if (drive !== undefined && (!Number.isFinite(drive) || drive < 0 || drive > 1)) throw new Error('Invalid arcade drive impulse')
   return Object.freeze({ ...preset,
     egg: Object.freeze({ ...preset.egg, principalInertia: Object.freeze([...preset.egg.principalInertia] as [number, number, number]) }),
     controls: Object.freeze({ ...preset.controls }),

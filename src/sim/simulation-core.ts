@@ -321,6 +321,12 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
         egg.applyTorqueImpulse({ x: moveZ * preset.controls.torqueImpulse, y: 0, z: -moveX * preset.controls.torqueImpulse }, true)
       }
 
+      // Torque-only planar contact can stall. Arcade presets explicitly opt in
+      // to fixed-tick lateral steering; legacy preset/hash semantics stay intact.
+      if (preset.controls.driveImpulse !== undefined && (moveX !== 0 || moveZ !== 0)) {
+        egg.applyImpulse({ x: moveX * preset.controls.driveImpulse, y: 0, z: moveZ * preset.controls.driveImpulse }, true)
+      }
+
       const support = findSupportContact(world, eggCollider, egg, preset)
       const action = stepFeel(feelState, input, support, feel, tick)
       if (action.jump !== null) {

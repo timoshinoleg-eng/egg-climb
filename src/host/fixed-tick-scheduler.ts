@@ -12,7 +12,8 @@ export class FixedTickInputScheduler {
   private overloadCountValue = 0
 
   sampleFrame(frameDeltaSeconds: number, sampleInput: () => TickInput): number {
-    const boundedDelta = Math.min(Math.max(frameDeltaSeconds, 0), MAX_FRAME_DELTA_SECONDS)
+    const boundedDelta = Number.isFinite(frameDeltaSeconds)
+      ? Math.min(Math.max(frameDeltaSeconds, 0), MAX_FRAME_DELTA_SECONDS) : 0
     this.accumulatorSeconds += boundedDelta
     let sampled = 0
     while (
@@ -32,13 +33,27 @@ export class FixedTickInputScheduler {
     return sampled
   }
 
-  takeBatch(maxTicks = DEFAULT_TRANSPORT_BATCH_TICKS): TickInput[] {
+  takeBatch(maxTicks: number = DEFAULT_TRANSPORT_BATCH_TICKS): TickInput[] {
     if (!Number.isInteger(maxTicks) || maxTicks <= 0) throw new Error('Transport batch size must be a positive integer')
     return this.pending.splice(0, Math.min(maxTicks, this.pending.length))
   }
 
   resetTiming(): void {
     this.accumulatorSeconds = 0
+  }
+
+  /** Drop unsent input on focus loss; callers may trim corresponding replay samples. */
+  discardPending(): number {
+    const dropped = this.pending.length
+    this.pending.length = 0
+    this.resetTiming()
+    return dropped
+  }
+
+  /** New round: neither old controls nor overload telemetry can survive. */
+  reset(): void {
+    this.discardPending()
+    this.overloadCountValue = 0
   }
 
   get alpha(): number {
