@@ -6,7 +6,7 @@ import { packagePlaytest } from '../../scripts/package-playtest.mjs'
 import { replayPlaytest } from '../../scripts/replay-playtest.mjs'
 import { expect, test } from '@playwright/test'
 
-test('packaged playtest runs under an /egg-climb/ subpath and exports replayable JSON', async ({ page, browserName }) => {
+test('packaged playtest runs under an /egg-climb/ subpath and exposes Labs plus Kitchen Escape', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Static MAX package smoke runs in Chromium')
   const packageRoot = await packagePlaytest()
   const mime = {
@@ -60,6 +60,14 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
     expect(record.config.feel).toBe('2d-hold-assist')
     expect(record.samples.some(input => input.jumpDown)).toBe(true)
     expect(record.samples.some(input => input.jumpUp)).toBe(true)
+
+    await page.goto(`http://127.0.0.1:${port}/egg-climb/debug/kitchen-escape.html?quality=low&feel=2d-tap-assist`)
+    await expect(page.locator('#status')).toContainText('Работает')
+    const kitchen = await page.evaluate(() => window.__eggKitchenPlaytest?.getState())
+    expect(kitchen?.levelId).toBe('kitchen-escape-graybox')
+    expect(kitchen?.section).toBe('table')
+    expect(kitchen?.quality).toBe('low')
+
     expect(missing).toEqual([])
     expect(errors).toEqual([])
   } finally {
