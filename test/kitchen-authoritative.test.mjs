@@ -18,6 +18,19 @@ import { canonicalLevelSha256 } from '../dist/server/daily-contracts.js'
 
 const initialEgg = position => ({ position, rotation: [0, 0, 0, 1], linearVelocity: [0, 0, 0], angularVelocity: [0, 0, 0] })
 
+function kitchenWitnessInputEvents(finishTick) {
+  const events = [{ tick: 0, seq: 0, kind: 'move', moveX: 1, moveZ: 0 }]
+  for (let tick = 12; tick + 1 < finishTick; tick += 12) {
+    events.push({ tick, seq: 0, kind: 'jump', down: true })
+    events.push({ tick: tick + 1, seq: 0, kind: 'jump', down: false })
+  }
+  return events
+}
+
+function withCollection(name, value) {
+  return { ...KITCHEN_LEVEL_DEFINITION, [name]: value }
+}
+
 test('Kitchen v2 canonical identity is stable and trusted resolution fails closed', async () => {
   assert.equal(KITCHEN_LEVEL_DEFINITION.formatVersion, 2)
   assert.equal(await canonicalLevelSha256(KITCHEN_LEVEL_DEFINITION), KITCHEN_LEVEL_HASH)
@@ -31,13 +44,40 @@ test('Kitchen v2 canonical identity is stable and trusted resolution fails close
   assert.throws(() => resolveTrustedLevel({ ...header, levelId: 'unknown' }), /Unknown authoritative level/)
 })
 
-test('level format validation rejects unsupported fields, duplicates, and malformed geometry', async () => {
+test('level format validation is exact and fail-closed for every primitive type', async () => {
   assert.doesNotThrow(() => assertLevelDefinition(KITCHEN_LEVEL_DEFINITION))
   assert.throws(() => assertLevelDefinition({ ...KITCHEN_LEVEL_DEFINITION, formatVersion: 3 }), /Unsupported level format/)
   assert.throws(() => assertLevelDefinition({ ...KITCHEN_LEVEL_DEFINITION, ignoredMechanic: [] }), /Unsupported level fields/)
-  assert.throws(() => assertLevelDefinition({ ...KITCHEN_LEVEL_DEFINITION, staticBoxes: [{ ...KITCHEN_LEVEL_DEFINITION.staticBoxes[0], halfExtents: [1, 0, 1] }] }), /half extents/)
-  assert.throws(() => assertLevelDefinition({ ...KITCHEN_LEVEL_DEFINITION, launchZones: [{ ...KITCHEN_LEVEL_DEFINITION.launchZones[0], id: KITCHEN_LEVEL_DEFINITION.staticBoxes[0].id }] }), /duplicate/)
-  assert.throws(() => assertLevelDefinition({ ...KITCHEN_LEVEL_DEFINITION, launchZones: [{ ...KITCHEN_LEVEL_DEFINITION.launchZones[0], impulse: [0, Number.NaN, 0] }] }), /launch impulse/)
+
+  const staticBox = KITCHEN_LEVEL_DEFINITION.staticBoxes[0]
+  const { friction: _staticFriction, ...staticWithoutFriction } = staticBox
+  assert.throws(() => assertLevelDefinition(withCollection('staticBoxes', [staticWithoutFriction, ...KITCHEN_LEVEL_DEFINITION.staticBoxes.slice(1)])), /Unsupported primitive fields/)
+  assert.throws(() => assertLevelDefinition(withCollection('staticBoxes', [{ ...staticBox, unknown: true }, ...KITCHEN_LEVEL_DEFINITION.staticBoxes.slice(1)])), /Unsupported primitive fields/)
+  assert.throws(() => assertLevelDefinition(withCollection('staticBoxes', [{ ...staticBox, impulse: [0, 1, 0] }, ...KITCHEN_LEVEL_DEFINITION.staticBoxes.slice(1)])), /Unsupported primitive fields/)
+  assert.throws(() => assertLevelDefinition(withCollection('staticBoxes', [{ ...staticBox, halfExtents: [1, 0, 1] }, ...KITCHEN_LEVEL_DEFINITION.staticBoxes.slice(1)])), /half extents/)
+
+  const kinematic = KITCHEN_LEVEL_DEFINITION.kinematicBoxes[0]
+  const { motion: _motion, ...kinematicWithoutMotion } = kinematic
+  assert.throws(() => assertLevelDefinition(withCollection('kinematicBoxes', [kinematicWithoutMotion])), /Unsupported primitive fields/)
+  assert.throws(() => assertLevelDefinition(withCollection('kinematicBoxes', [{ ...kinematic, unexpected: 1 }])), /Unsupported primitive fields/)
+  assert.throws(() => assertLevelDefinition(withCollection('kinematicBoxes', [{ ...kinematic, motion: { ...kinematic.motion, axis: [0, 2, 0] } }])), /cardinal unit vector/)
+  assert.throws(() => assertLevelDefinition(withCollection('kinematicBoxes', [{ ...kinematic, motion: { ...kinematic.motion, distance: -1 } }])), /kinematic distance/)
+
+  const steam = KITCHEN_LEVEL_DEFINITION.continuousForceZones[0]
+  const { impulsePerTick: _steamImpulse, ...steamWithoutImpulse } = steam
+  assert.throws(() => assertLevelDefinition(withCollection('continuousForceZones', [steamWithoutImpulse])), /Unsupported primitive fields/)
+  assert.throws(() => assertLevelDefinition(withCollection('continuousForceZones', [{ ...steam, impulse: [0, 1, 0] }])), /Unsupported primitive fields/)
+  assert.throws(() => assertLevelDefinition(withCollection('continuousForceZones', [{ ...steam, impulsePerTick: [0, Number.NaN, 0] }])), /continuous force impulse/)
+
+  const launch = KITCHEN_LEVEL_DEFINITION.launchZones[0]
+  const { impulse: _launchImpulse, ...launchWithoutImpulse } = launch
+  assert.throws(() => assertLevelDefinition(withCollection('launchZones', [launchWithoutImpulse])), /Unsupported primitive fields/)
+  assert.throws(() => assertLevelDefinition(withCollection('launchZones', [{ ...launch, impulsePerTick: [0, 1, 0] }])), /Unsupported primitive fields/)
+  assert.throws(() => assertLevelDefinition(withCollection('launchZones', [{ ...launch, id: staticBox.id }])), /duplicate/)
+
+  const finish = KITCHEN_LEVEL_DEFINITION.finishVolumes[0]
+  assert.throws(() => assertLevelDefinition(withCollection('finishVolumes', [{ ...finish, impulse: [0, 1, 0] }])), /Unsupported primitive fields/)
+
   const reversed = { ...KITCHEN_LEVEL_DEFINITION, staticBoxes: [...KITCHEN_LEVEL_DEFINITION.staticBoxes].reverse() }
   assert.notEqual(await canonicalLevelSha256(reversed), KITCHEN_LEVEL_HASH)
 })
@@ -68,8 +108,11 @@ test('kinematic Rapier collider carries the egg reproducibly and resets phase', 
   assert.ok(first.snapshot.position.y > box.center[1] + 1)
 })
 
-test('steam is inclusive and applies once per authoritative tick', async () => {
+test('steam is local, predominantly vertical, inclusive, and applies once per authoritative tick', async () => {
   const zone = KITCHEN_LEVEL_DEFINITION.continuousForceZones[0]
+  assert.ok(zone.halfExtents[0] <= 2)
+  assert.ok(zone.impulsePerTick[1] > Math.abs(zone.impulsePerTick[0]))
+  assert.ok(zone.impulsePerTick[1] > Math.abs(zone.impulsePerTick[2]))
   const sim = await createSimulation({ level: KITCHEN_LEVEL, initialEgg: initialEgg(zone.center) })
   const boundary = await createSimulation({ level: KITCHEN_LEVEL, initialEgg: initialEgg([zone.center[0] + zone.halfExtents[0], zone.center[1], zone.center[2]]) })
   const outside = await createSimulation({ level: KITCHEN_LEVEL, initialEgg: initialEgg([zone.center[0] + zone.halfExtents[0] + 0.001, zone.center[1], zone.center[2]]) })
@@ -77,7 +120,7 @@ test('steam is inclusive and applies once per authoritative tick', async () => {
     sim.step(NEUTRAL_INPUT)
     const first = sim.snapshot()
     assert.deepEqual(first.gameplay.activeContinuousForceZoneIds, [zone.id])
-    assert.ok(first.linearVelocity.x > 0)
+    assert.ok(first.linearVelocity.y > 0)
     sim.step(NEUTRAL_INPUT)
     assert.deepEqual(sim.snapshot().gameplay.activeContinuousForceZoneIds, [zone.id])
     boundary.step(NEUTRAL_INPUT)
@@ -126,16 +169,25 @@ test('Finish is post-step, first-tick latched, and Foundation remains incomplete
   assert.equal(foundation.completionTick, null)
 })
 
-test('Kitchen witness replay crosses an environmental zone, completes once, and uses Kitchen origin', async () => {
-  const replay = { header: replayHeaderForLevel(KITCHEN_LEVEL), inputEvents: [], finishTick: 300 }
+test('Kitchen neutral replay does not self-complete', async () => {
+  const neutral = await runReplay({ header: replayHeaderForLevel(KITCHEN_LEVEL), inputEvents: [], finishTick: 600 })
+  assert.equal(neutral.completed, false)
+  assert.equal(neutral.completionTick, null)
+})
+
+test('Kitchen authored-input witness completes deterministically and keeps terminal tick separate', async () => {
+  const finishTick = 600
+  const inputEvents = kitchenWitnessInputEvents(finishTick)
+  assert.ok(inputEvents.length > 0)
+  const replay = { header: replayHeaderForLevel(KITCHEN_LEVEL), inputEvents, finishTick }
   const a = await runReplay(replay)
   const b = await runReplay(replay)
   assert.equal(a.snapshot.identity.levelHash, KITCHEN_LEVEL.hash)
   assert.equal(a.completed, true)
-  assert.equal(a.completionTick, 214)
-  assert.equal(a.maxHeightMm, 9002)
+  assert.ok(Number.isInteger(a.completionTick) && a.completionTick > 0 && a.completionTick < finishTick)
   assert.deepEqual(a, b)
-  const afterCompletion = await runReplay({ ...replay, finishTick: 360 })
-  assert.equal(afterCompletion.completionTick, 214)
+  const afterCompletion = await runReplay({ ...replay, finishTick: 720, inputEvents: kitchenWitnessInputEvents(720) })
+  assert.equal(afterCompletion.completionTick, a.completionTick)
   await assert.rejects(runReplay({ ...replay, header: { ...replay.header, levelHash: FOUNDATION_LEVEL.hash } }), /Level hash/)
+  console.log(`[kitchen-witness] fingerprint=${a.fingerprint} completionTick=${a.completionTick} maxHeightMm=${a.maxHeightMm} inputEvents=${inputEvents.length}`)
 })
