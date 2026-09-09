@@ -9,7 +9,7 @@ stable, and where the detailed decisions live.
 
 It describes the implemented foundation and its explicit contracts. It does not
 replace the detailed ADRs or specifications, define product roadmap, or specify
-future Kitchen content, backend deployment, or final game design.
+future production Kitchen art, backend deployment, or final game design.
 
 ### Source-of-truth hierarchy
 
@@ -200,9 +200,9 @@ The host converts exact post-tick simulation semantics into ordered
 `PresentationEvent`s and sends them one way to presentation. An event identity
 contains attempt, tick, kind, and ordinal; the cursor consumes the monotonic
 stream exactly once without retaining an unbounded seen-set. Current emitted
-events are accepted jumps and support-transition landings. `fail`, `checkpoint`,
-and `finish` exist as contract-ready event kinds but are not inferred by the
-current Foundation simulation.
+events include accepted jumps, support-transition landings, Kitchen launch
+activations, and Kitchen Finish. `fail` and `checkpoint` remain contract-ready
+event kinds without current authoritative emitters.
 
 Renderers must not reconstruct gameplay transitions from velocity heuristics.
 Velocity may scale a visual impact only after an authoritative landing semantic
@@ -217,10 +217,18 @@ state. High quality alone may lazily use short bloom accents; Medium and Low
 never construct the bloom path. Presentation quality can scale down, but it
 cannot alter simulation.
 
+The rendered Kitchen graybox adds an open cutaway scene, route-authored camera
+regions, mobile 2.5D controls, local playtest telemetry, immediate Worker reset,
+and visual cues for the canonical toaster, steam, moving-cabinet, and vent
+semantics. Its camera, decorative geometry, fall UI, and telemetry remain
+presentation-only; collision and completion still come from the committed
+Kitchen LevelDefinition and Worker simulation.
+
 Renderer lifecycle is part of the contract: disposal is idempotent, owned
 resources/listeners are released, context loss stops optional rendering safely,
 and restoration resumes direct rendering before any optional post-processing is
 rebuilt. See the [Visual Preset v1 spec](../specs/2026-09-06-visual-preset-v1.md),
+the [Kitchen rendered graybox spec](../specs/2026-09-10-kitchen-rendered-graybox.md),
 [`src/presentation/events.ts`](../../src/presentation/events.ts), and
 [`src/render/juice.ts`](../../src/render/juice.ts). The Three.js integration for
 the camera shake layer, bloom composer, context handling, and resource disposal
@@ -282,9 +290,9 @@ CI typechecks and runs Node tests—including deterministic core, replay,
 host/worker, scoring, contracts, and renderer lifecycle checks—on Linux x64,
 Windows x64, and macOS ARM64. Deterministic replay/worker and non-rendered feel
 parity run across Chromium, Firefox, and WebKit. Rendered WebGL UI, MAX
-mobile-shell, and packaged-playtest smoke coverage is currently Chromium-only.
-Property tests complement, but do not replace, golden parity across engines and
-architectures.
+mobile-shell, Kitchen graybox, and packaged-playtest smoke coverage is currently
+Chromium-only. Property tests complement, but do not replace, golden parity
+across engines and architectures.
 
 The MAX packaging/browser suite checks the opt-in playtest shell separately.
 Playwright WebKit is portability evidence, not a substitute for a real MAX or
@@ -302,6 +310,8 @@ iOS WKWebView smoke. Workflows live in [CI](../../.github/workflows/ci.yml) and
 - Physics Lab and Game Feel Lab fixtures/playtest export tooling.
 - Ordered presentation-event and Visual Preset foundation, including lifecycle
   and quality-tier behavior.
+- A rendered/playable Kitchen graybox with authored cutaway camera, mobile 2.5D
+  controls, local telemetry, and static-package smoke coverage.
 - MAX browser playtest shell and static packaging.
 - Daily, leaderboard, MAX validation, canonical scoring, and database-schema
   contract foundations.
@@ -311,9 +321,9 @@ iOS WKWebView smoke. Workflows live in [CI](../../.github/workflows/ci.yml) and
 - Production Daily generator and atomic Daily publication flow.
 - Production HTTP replay submission and leaderboard read APIs.
 - A killable production replay executor plus HTTP admission/rate-limit layer.
-- A rendered/playable Kitchen graybox and production Kitchen art/content.
+- Production Kitchen art/content and final renderer polish.
 - Local or network ghost gameplay.
-- A final player-selected game-feel winner or full production renderer.
+- A final player-selected game-feel winner.
 
 ## 16. Architectural rules for future changes
 
@@ -341,6 +351,7 @@ iOS WKWebView smoke. Workflows live in [CI](../../.github/workflows/ci.yml) and
 - [ADR 0004: Game Feel Lab](../adr/0004-game-feel-lab.md)
 - [Game-feel design](../specs/2026-09-05-game-feel-design.md) and [playtest protocol](../game-feel-playtest.md)
 - [Visual Preset v1](../specs/2026-09-06-visual-preset-v1.md)
+- [Kitchen rendered graybox](../specs/2026-09-10-kitchen-rendered-graybox.md)
 - [Daily Tower and leaderboards](../specs/2026-09-06-daily-tower-leaderboards.md)
 - [MAX playtest guide](../max-playtest.md)
 - [Simulation entry point](../../src/sim/index.ts), [host entry point](../../src/host/index.ts), and [presentation entry point](../../src/presentation/index.ts)
