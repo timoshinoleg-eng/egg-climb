@@ -64,7 +64,7 @@ test('packaged playtest runs under an /egg-climb/ subpath and exposes Labs plus 
     await page.goto(`http://127.0.0.1:${port}/egg-climb/debug/kitchen-escape.html?quality=low&feel=2d-tap-assist`)
     await expect(page.locator('#status')).toContainText('Работает')
     const kitchen = await page.evaluate(() => window.__eggKitchenPlaytest?.getState())
-    expect(kitchen?.levelId).toBe('kitchen-escape-graybox')
+    expect(kitchen?.levelId).toBe('kitchen-escape-v1')
     expect(kitchen?.section).toBe('table')
     expect(kitchen?.quality).toBe('low')
 
