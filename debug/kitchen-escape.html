@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#171c2a" />
+  <title>Egg Climb — Kitchen Escape</title>
+  <link rel="stylesheet" href="./kitchen-escape.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/node_modules/three/build/three.module.js",
+      "three/addons/": "/node_modules/three/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="kitchenViewport" aria-label="Egg Climb Kitchen Escape viewport"></canvas>
+
+  <header id="kitchenHud" aria-label="Kitchen Escape status">
+    <div class="brand-row">
+      <div>
+        <strong>KITCHEN ESCAPE</strong>
+        <span id="status">Инициализация…</span>
+      </div>
+      <button id="restartButton" type="button" aria-label="Начать заново">↻</button>
+    </div>
+    <div class="run-row">
+      <span id="sectionLabel">СТОЛ</span>
+      <span id="runTimer">0:00</span>
+      <span id="heightLabel">+0.0 м</span>
+    </div>
+    <div id="routeProgress" aria-label="Прогресс побега">
+      <i data-section="table"></i><i data-section="cutting-board"></i><i data-section="counter"></i>
+      <i data-section="toaster"></i><i data-section="steam"></i><i data-section="fridge"></i>
+      <i data-section="moving-cabinet"></i><i data-section="hood"></i><i data-section="vent"></i>
+    </div>
+    <div id="hint">Доберись до вентиляции. Тостер, пар и шкаф помогут подняться.</div>
+  </header>
+
+  <div id="resultOverlay" hidden>
+    <div class="result-card">
+      <div id="resultEyebrow">ПОПЫТКА ЗАВЕРШЕНА</div>
+      <h1 id="resultTitle">Ещё раз?</h1>
+      <p id="resultSummary"></p>
+      <button id="retryButton" type="button">ЕЩЁ ПОПЫТКА</button>
+      <button id="metricsButton" type="button" class="secondary">Скачать метрики</button>
+    </div>
+  </div>
+
+  <div id="mobileControls" aria-label="Управление">
+    <div class="move-controls">
+      <button id="leftButton" type="button" aria-label="Влево">←</button>
+      <button id="rightButton" type="button" aria-label="Вправо">→</button>
+    </div>
+    <button id="jumpButton" type="button" aria-label="Прыжок">ПРЫЖОК</button>
+  </div>
+
+  <div id="unsupported" hidden>Для Kitchen Escape нужен WebGL2.</div>
+  <script type="module" src="./kitchen-escape.js"></script>
+</body>
+</html>
