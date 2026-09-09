@@ -58,3 +58,9 @@ npm run debug:serve
 ```
 
 Open `http://127.0.0.1:4173/debug/index.html`. WASD/arrows are sampled by the main thread and advanced through the explicit worker transport at fixed physics ticks. Physics Lab renders the actual pre-baked egg hull, COM and support manifold diagnostics. Use `/debug/index.html?physics=lab-b&scenario=jump-tip` to select a worker-owned lab fixture; Space jumps from contact. See [physics decision and experiment metrics](docs/adr/0003-physics-lab.md).
+
+## Delivery report
+
+See the [Engineering & Visual Delivery Report](docs/delivery/engineering-visual-report.md)
+for the hardening/arcade changes, measured frame budget, full CI evidence, optional
+MIT/CC0 integrations and safe static deployment settings.

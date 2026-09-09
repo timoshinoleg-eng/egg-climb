@@ -41,7 +41,7 @@ phone, GPU, refresh rate, battery mode or background browser tab. A physical
 Android/iOS/MAX smoke is still required before a production performance claim.
 Raw screenshots, traces and timing JSON are intentionally ignored test artifacts.
 
-## Full matrix is NOT yet green
+## Historical local full-matrix attempt (environment failure)
 
 The requested `npm run build && npm test && npx playwright test` was executed.
 Build and all 132 unit tests passed. Playwright reported **15 passed / 30 failed**.
@@ -56,8 +56,31 @@ mirrors were also unreachable. An npm-distributed Chromium enabled local UI
 verification but cannot substitute for Firefox or WebKit.
 
 The user asked to continue after the draft-PR/CI route was proposed. Delivery
-therefore proceeds as a **draft PR first**, with the remaining gate evaluated on
-GitHub Actions using all three pinned engines. This is an explicit exception to
-the original strict step 4 → step 5 order, not a claim that missing browser runs
-passed. Full Playwright validation and cross-platform CI remain pending until
-those runs are observed. The final report will record the PR and CI links.
+proceeded through a **draft PR first**, with the remaining gate evaluated on
+GitHub Actions. This was an exception to the original strict step 4 → step 5
+order, not a claim that missing local browser runs passed.
+
+## Full CI gate resolved
+
+[PR #13](https://github.com/timoshinoleg-eng/egg-climb/pull/13) is ready for review.
+[CI run 34407859412](https://github.com/timoshinoleg-eng/egg-climb/actions/runs/34407859412)
+is **SUCCESS** for code SHA `58dbadba996bbed1ce4df04b91cfe591b59cceca`.
+
+| GitHub check | Observed conclusion |
+| --- | --- |
+| deterministic-core — Ubuntu / Linux x64 | SUCCESS |
+| deterministic-core — Windows / win32 x64 | SUCCESS |
+| deterministic-core — macOS 15 / darwin arm64 | SUCCESS |
+| browser-determinism — pinned Chromium, Firefox, WebKit | SUCCESS |
+
+All install, typecheck and test steps succeeded, confirmed through the GitHub
+Jobs/Checks API. The browser suite registers 45 cases; eight pre-existing
+non-Chromium diagnostic-WebGL UI exclusions remain unchanged. All seven new
+arcade scenarios are registered on all three engines with no new skips.
+The detailed log archive is unreachable from the sandbox, so an exact numerical
+PASS/SKIP total from that archive is not asserted. Job success and tested SHA are
+available directly at the run link above.
+
+No merge or production deployment was performed. See the full
+[Engineering & Visual Delivery Report](./engineering-visual-report.md) for
+changes, source/license-checked recommendations and deployment instructions.
