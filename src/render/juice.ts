@@ -84,9 +84,15 @@ export class SquashStretch {
   update(dt: number, verticalSpeed: number): SquashScale {
     const step = clamp(dt, 0, 0.1)
     const airTarget = clamp(verticalSpeed * AIR_STRETCH_PER_SPEED, -AIR_STRETCH_MAX, AIR_STRETCH_MAX)
-    const acceleration = (airTarget - this.stretch) * SQUASH_SPRING - this.velocity * SQUASH_DAMPING
-    this.velocity += acceleration * step
-    this.stretch = clamp(this.stretch + this.velocity * step, SQUASH_MIN, SQUASH_MAX)
+    // Bound the spring integrator, not just wall-clock delta: a slow frame must
+    // not inject energy and leave the egg bouncing between hard clamps.
+    const substeps = Math.max(1, Math.ceil(step * 120))
+    const h = step / substeps
+    for (let i = 0; i < substeps; i += 1) {
+      const acceleration = (airTarget - this.stretch) * SQUASH_SPRING - this.velocity * SQUASH_DAMPING
+      this.velocity += acceleration * h
+      this.stretch = clamp(this.stretch + this.velocity * h, SQUASH_MIN, SQUASH_MAX)
+    }
 
     const y = 1 + this.stretch
     const xz = 1 / Math.sqrt(Math.max(0.2, y))
