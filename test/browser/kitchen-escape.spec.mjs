@@ -52,3 +52,14 @@ test('Kitchen Escape rendered graybox boots on mobile, moves, jumps and retries'
   expect(restarted.ended).toBe(false)
   expect(errors).toEqual([])
 })
+
+test('Kitchen Escape normalizes unsupported 3D feel requests to the 2.5D playtest lane', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Rendered Kitchen WebGL smoke runs in Chromium')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/debug/kitchen-escape.html?quality=low&feel=3d-tap')
+  await expect(page).toHaveURL(/feel=2d-tap-assist/)
+  await expect(page.locator('#status')).toContainText('Работает')
+  const state = await page.evaluate(() => window.__eggKitchenPlaytest?.getState())
+  expect(state?.feel).toBe('2d-tap-assist')
+  expect(state?.section).toBe('table')
+})
