@@ -31,10 +31,16 @@ export async function packagePlaytest() {
   await copyFile(join(ROOT, 'debug', 'max-playtest.js'), join(OUTPUT, 'debug', 'max-playtest.js'))
   await copyFile(join(ROOT, 'debug', 'style.css'), join(OUTPUT, 'debug', 'style.css'))
   await copyFile(join(ROOT, 'debug', 'sim-worker.js'), join(OUTPUT, 'debug', 'sim-worker.js'))
+  await copyFile(join(ROOT, 'debug', 'juice-view.js'), join(OUTPUT, 'debug', 'juice-view.js'))
+  await copyFile(join(ROOT, 'debug', 'kitchen-escape.html'), join(OUTPUT, 'debug', 'kitchen-escape.html'))
+  await copyFile(join(ROOT, 'debug', 'kitchen-escape.js'), join(OUTPUT, 'debug', 'kitchen-escape.js'))
+  await copyFile(join(ROOT, 'debug', 'kitchen-escape.css'), join(OUTPUT, 'debug', 'kitchen-escape.css'))
   await copyDistJavaScript(join(ROOT, 'dist'), join(OUTPUT, 'dist'))
 
   await copyFile(join(ROOT, 'node_modules', 'three', 'build', 'three.module.js'), join(OUTPUT, 'vendor', 'three', 'three.module.js'))
   await copyFile(join(ROOT, 'node_modules', 'three', 'build', 'three.core.js'), join(OUTPUT, 'vendor', 'three', 'three.core.js'))
+  await copyDistJavaScript(join(ROOT, 'node_modules', 'three', 'examples', 'jsm', 'postprocessing'), join(OUTPUT, 'vendor', 'three', 'addons', 'postprocessing'))
+  await copyDistJavaScript(join(ROOT, 'node_modules', 'three', 'examples', 'jsm', 'shaders'), join(OUTPUT, 'vendor', 'three', 'addons', 'shaders'))
   await copyFile(join(ROOT, 'node_modules', 'three', 'LICENSE'), join(OUTPUT, 'vendor', 'three', 'LICENSE-MIT.txt'))
   await copyFile(join(ROOT, 'node_modules', '@dimforge', 'rapier3d-deterministic-compat', 'dist', 'rapier.mjs'), join(OUTPUT, 'vendor', 'rapier', 'rapier.mjs'))
   await copyFile(join(ROOT, 'node_modules', '@dimforge', 'rapier3d-deterministic-compat', 'dist', 'rapier_wasm3d_bg.wasm'), join(OUTPUT, 'vendor', 'rapier', 'rapier_wasm3d_bg.wasm'))
@@ -43,6 +49,14 @@ export async function packagePlaytest() {
   const indexPath = join(OUTPUT, 'debug', 'index.html')
   const index = await readFile(indexPath, 'utf8')
   await writeFile(indexPath, index.replace('/node_modules/three/build/three.module.js', '../vendor/three/three.module.js'))
+  const kitchenPath = join(OUTPUT, 'debug', 'kitchen-escape.html')
+  const kitchen = await readFile(kitchenPath, 'utf8')
+  await writeFile(
+    kitchenPath,
+    kitchen
+      .replace('/node_modules/three/build/three.module.js', '../vendor/three/three.module.js')
+      .replace('/node_modules/three/examples/jsm/', '../vendor/three/addons/'),
+  )
   const workerPath = join(OUTPUT, 'debug', 'sim-worker.js')
   const worker = await readFile(workerPath, 'utf8')
   await writeFile(workerPath, worker.replace('/node_modules/@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs', '../vendor/rapier/rapier.mjs'))
