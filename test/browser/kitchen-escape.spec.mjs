@@ -1,0 +1,54 @@
+import { expect, test } from '@playwright/test'
+
+test('Kitchen Escape rendered graybox boots on mobile, moves, jumps and retries', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Rendered Kitchen WebGL smoke runs in Chromium')
+  await page.setViewportSize({ width: 390, height: 844 })
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`) })
+
+  await page.goto('/debug/kitchen-escape.html?quality=low&feel=2d-tap-assist')
+  await expect(page.locator('#status')).toContainText('Работает')
+  await expect(page.locator('#sectionLabel')).toHaveText('СТОЛ')
+  await expect(page.locator('#mobileControls')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Прыжок' })).toBeVisible()
+
+  const initial = await page.evaluate(() => window.__eggKitchenPlaytest?.getState())
+  expect(initial).toBeTruthy()
+  expect(initial.levelId).toBe('kitchen-escape-graybox')
+  expect(initial.section).toBe('table')
+  expect(initial.ended).toBe(false)
+  expect(initial.feel).toBe('2d-tap-assist')
+  expect(initial.quality).toBe('low')
+
+  const right = page.getByRole('button', { name: 'Вправо' })
+  const rightBox = await right.boundingBox()
+  expect(rightBox).toBeTruthy()
+  await page.mouse.move(rightBox.x + rightBox.width / 2, rightBox.y + rightBox.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(700)
+  await page.mouse.up()
+
+  const jump = page.getByRole('button', { name: 'Прыжок' })
+  const jumpBox = await jump.boundingBox()
+  expect(jumpBox).toBeTruthy()
+  await page.mouse.move(jumpBox.x + jumpBox.width / 2, jumpBox.y + jumpBox.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(70)
+  await page.mouse.up()
+  await page.waitForTimeout(250)
+
+  const moved = await page.evaluate(() => window.__eggKitchenPlaytest.getState())
+  expect(moved.tick).toBeGreaterThan(initial.tick)
+  expect(moved.position.x).toBeGreaterThan(initial.position.x)
+  expect(moved.maxHeight).toBeGreaterThan(0)
+  expect(['table', 'cutting-board', 'counter']).toContain(moved.section)
+
+  await page.getByRole('button', { name: 'Начать заново' }).click()
+  await expect.poll(async () => (await page.evaluate(() => window.__eggKitchenPlaytest.getState())).attemptNumber).toBe(2)
+  const restarted = await page.evaluate(() => window.__eggKitchenPlaytest.getState())
+  expect(restarted.position.x).toBeCloseTo(10, 3)
+  expect(restarted.section).toBe('table')
+  expect(restarted.ended).toBe(false)
+  expect(errors).toEqual([])
+})
