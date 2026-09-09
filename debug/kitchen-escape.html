@@ -6,6 +6,17 @@
   <meta name="theme-color" content="#171c2a" />
   <title>Egg Climb — Kitchen Escape</title>
   <link rel="stylesheet" href="./kitchen-escape.css" />
+  <script>
+    (() => {
+      const url = new URL(location.href)
+      const allowed = new Set(['2d-tap', '2d-hold', '2d-tap-assist', '2d-hold-assist'])
+      const requested = url.searchParams.get('feel')
+      if (requested && !allowed.has(requested)) {
+        url.searchParams.set('feel', '2d-tap-assist')
+        history.replaceState(null, '', url)
+      }
+    })()
+  </script>
   <script type="importmap">
   {
     "imports": {
