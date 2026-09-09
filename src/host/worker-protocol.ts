@@ -13,6 +13,7 @@ import {
 } from '../sim/config.js'
 import type { SimulationSnapshot, TickInput } from '../sim/contracts.js'
 import type { SimulationFrame } from './contracts.js'
+import { FOUNDATION_LEVEL } from '../sim/level.js'
 
 export interface WorkerRuntimeInfo {
   readonly runtime: 'worker'
@@ -29,6 +30,10 @@ export interface WorkerRuntimeInfo {
   readonly eggColliderId: typeof EGG_COLLIDER_ID
   readonly eggColliderVersion: typeof EGG_COLLIDER_VERSION
   readonly eggColliderHash: typeof EGG_COLLIDER_HASH
+  readonly levelId: string
+  readonly levelVersion: number
+  readonly levelFormatVersion: number
+  readonly levelHash: string
 }
 
 export const EXPECTED_WORKER_RUNTIME_INFO: WorkerRuntimeInfo = Object.freeze({
@@ -44,6 +49,8 @@ export const EXPECTED_WORKER_RUNTIME_INFO: WorkerRuntimeInfo = Object.freeze({
   eggColliderId: EGG_COLLIDER_ID,
   eggColliderVersion: EGG_COLLIDER_VERSION,
   eggColliderHash: EGG_COLLIDER_HASH,
+  levelId: FOUNDATION_LEVEL.id, levelVersion: FOUNDATION_LEVEL.version,
+  levelFormatVersion: FOUNDATION_LEVEL.formatVersion, levelHash: FOUNDATION_LEVEL.hash,
 })
 
 export type WorkerRequestPayload =

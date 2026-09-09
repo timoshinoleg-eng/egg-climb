@@ -100,11 +100,11 @@ test('restart and pagehide leave one animation owner and no living worker',async
 
 test('an unresponsive Worker shows a recoverable error instead of hanging forever',async({page})=>{
   test.setTimeout(25000)
-  await page.route('**/play/sim-worker.js',route=>route.fulfill({contentType:'text/javascript',body:'self.onmessage = () => {}'}))
+  await page.route('**/play/sim-worker.js*',route=>route.fulfill({contentType:'text/javascript',body:'self.onmessage = () => {}'}))
   await page.goto('/')
   await expect(page.locator('#errorPanel')).toBeVisible({timeout:15000})
   await expect(page.getByRole('button',{name:'Reload the garden'})).toBeEnabled()
-  await page.unroute('**/play/sim-worker.js')
+  await page.unroute('**/play/sim-worker.js*')
   await page.getByRole('button',{name:'Reload the garden'}).click()
   await expect(page.locator('body')).toHaveAttribute('data-phase','ready')
 })

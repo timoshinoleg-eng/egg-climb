@@ -76,5 +76,15 @@ export function collectSimulationPresentationEvents(
     })
   }
 
+  for (const zoneId of current.gameplay?.activatedLaunchZoneIds ?? []) {
+    const ordinal = events.length
+    events.push({ id: simulationPresentationEventId(attemptId, current.tick, 'launch', ordinal), attemptId, tick: current.tick, ordinal, kind: 'launch', zoneId, position })
+  }
+
+  if (current.gameplay?.completionTick === current.tick && (previous.gameplay?.completionTick ?? null) === null) {
+    const ordinal = events.length
+    events.push({ id: simulationPresentationEventId(attemptId, current.tick, 'finish', ordinal), attemptId, tick: current.tick, ordinal, kind: 'finish', position })
+  }
+
   return events
 }

@@ -91,7 +91,7 @@ test('Rapier accepts the committed hull and explicit mass properties are indepen
   const hull = RAPIER.ColliderDesc.convexMesh(createEggColliderVertices(), createEggColliderIndices())
   assert.ok(hull, 'convex hull must be accepted by Rapier')
   const scenario = physicsLabScenario('broad-base-rest')
-  const simulation = await createSimulation({ preset: PHYSICS_V1, level: scenario.level, initialEgg: scenario.initialEgg })
+  const simulation = await createSimulation({ preset: PHYSICS_V1, fixtureStaticBoxes: scenario.level, initialEgg: scenario.initialEgg })
   try {
     simulation.step({ moveX: 0, moveZ: 0, jumpDown: false, jumpUp: false })
     const world = RAPIER.World.restoreSnapshot(simulation.takePhysicsSnapshot())

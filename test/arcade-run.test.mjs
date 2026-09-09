@@ -188,6 +188,8 @@ test('every garden leaf supports a stable landing and legal inputs reach the arc
     assert.equal(game.score.points, 1900)
     assert.equal(game.score.combo, 5)
     assert.equal(game.score.bonus, 350)
+    // A local-practice summit is not an authoritative Kitchen Finish.
+    assert.equal(game.current.gameplay.completionTick, null)
     assert.equal(game.pendingCount, 0)
   } finally { await game.dispose() }
 })

@@ -57,7 +57,7 @@ scene.add(new THREE.GridHelper(12, 24, 0x475569, 0x1f2937))
 scene.add(new THREE.AxesHelper(1.5))
 
 const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9, metalness: 0 })
-for (const box of scenario?.level ?? FOUNDATION_LEVEL) {
+for (const box of scenario?.level ?? FOUNDATION_LEVEL.definition.staticBoxes) {
   const [hx, hy, hz] = box.halfExtents
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), platformMaterial)
   mesh.position.set(...box.center)

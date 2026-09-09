@@ -6,15 +6,6 @@ import {
   EGG_COLLIDER_ID,
   EGG_COLLIDER_VERSION,
   FINGERPRINT_VERSION,
-  FOUNDATION_ASSIST_PRESET_ID,
-  FOUNDATION_CONTROL_MODE,
-  FOUNDATION_DIMENSION_MODE,
-  FOUNDATION_GENERATOR_VERSION,
-  FOUNDATION_LEVEL_FORMAT_VERSION,
-  FOUNDATION_LEVEL_HASH,
-  FOUNDATION_LEVEL_ID,
-  FOUNDATION_LEVEL_VERSION,
-  FOUNDATION_SEED,
   PHYSICS_HZ,
   PHYSICS_PRESET_HASH,
   PHYSICS_PRESET_ID,
@@ -25,7 +16,8 @@ import {
   SIMULATION_VERSION,
 } from './config.js'
 import type { Replay, ReplayInputEvent, SimulationSnapshot, TickInput } from './contracts.js'
-import { FOUNDATION_LEVEL_DEFINITION } from './level.js'
+import { resolveTrustedLevel } from './level.js'
+import type { ResolvedLevel } from './level.js'
 import { PHYSICS_V1 } from './physics-presets.js'
 import { EMPTY_HEIGHT_SCORE, recordHeightScore, worldCenterOfMassYFromSnapshot } from './scoring.js'
 import { createSimulation } from './simulation.js'
@@ -36,9 +28,8 @@ export interface ReplayResult {
   readonly clientFingerprintMatches: boolean | null
   readonly maxHeightMm: number | null
   readonly firstTickAtMaxHeight: number | null
-  /** Foundation has no authoritative finish semantic yet; never infer one. */
-  readonly completed: false
-  readonly completionTick: null
+  readonly completed: boolean
+  readonly completionTick: number | null
 }
 
 export interface ReplayLimits {
@@ -61,7 +52,7 @@ function validatedLimits(limits: ReplayLimits): ReplayLimits {
   return limits
 }
 
-function validateReplay(replay: Replay, requestedLimits: ReplayLimits): FeelPreset {
+function validateReplay(replay: Replay, requestedLimits: ReplayLimits): { feel: FeelPreset; level: ResolvedLevel } {
   const limits = validatedLimits(requestedLimits)
   if (!Number.isInteger(replay.finishTick) || replay.finishTick < 0) throw new Error('Invalid finish tick')
   if (replay.finishTick > limits.maxFinishTick) throw new Error('Replay exceeds maximum finish tick')
@@ -88,12 +79,7 @@ function validateReplay(replay: Replay, requestedLimits: ReplayLimits): FeelPres
   const feel = resolveFeelPreset(header.feelPresetId)
   if (header.feelPresetVersion !== feel.version || header.feelPresetHash !== computeFeelPresetHash(feel)) throw new Error('Feel preset mismatch')
   if (header.tickRate !== PHYSICS_HZ) throw new Error('Tick rate mismatch')
-  if (header.levelId !== FOUNDATION_LEVEL_ID || header.levelVersion !== FOUNDATION_LEVEL_VERSION) throw new Error('Level version mismatch')
-  if (header.levelFormatVersion !== FOUNDATION_LEVEL_FORMAT_VERSION) throw new Error('Level format mismatch')
-  if (header.levelHash !== FOUNDATION_LEVEL_HASH) throw new Error('Level hash mismatch')
-  if (header.generatorVersion !== FOUNDATION_GENERATOR_VERSION) throw new Error('Generator version mismatch')
-  if (header.rulesetHash !== DAILY_RULESET_HASH) throw new Error('Ruleset mismatch')
-  if (header.seed !== FOUNDATION_SEED) throw new Error('Unsupported foundation seed')
+  const level = resolveTrustedLevel(header)
   if (header.dimensionMode !== feel.dimensionMode) throw new Error('Dimension mode mismatch')
   if (header.controlMode !== feel.controlMode) throw new Error('Control mode mismatch')
   if (header.assistPresetId !== (feel.bufferTicks || feel.coyoteTicks || feel.tipHoldTicks ? feel.id : 'none')) throw new Error('Assist preset mismatch')
@@ -123,7 +109,7 @@ function validateReplay(replay: Replay, requestedLimits: ReplayLimits): FeelPres
       throw new Error('Invalid jump input')
     }
   }
-  return feel
+  return { feel, level }
 }
 
 /** Structural + compatibility validation reusable by future HTTP admission code. */
@@ -139,8 +125,8 @@ function applyEvent(event: ReplayInputEvent, state: { moveX: number; moveZ: numb
 }
 
 export async function runReplay(replay: Replay, limits: ReplayLimits = DEFAULT_REPLAY_LIMITS): Promise<ReplayResult> {
-  const feel = validateReplay(replay, limits)
-  const simulation = await createSimulation({ feel })
+  const { feel, level } = validateReplay(replay, limits)
+  const simulation = await createSimulation({ feel, level })
   const state = { moveX: 0, moveZ: 0, jumpHeld: false }
   let cursor = 0
   let heightScore = EMPTY_HEIGHT_SCORE
@@ -158,7 +144,7 @@ export async function runReplay(replay: Replay, limits: ReplayLimits = DEFAULT_R
       heightScore = recordHeightScore(
         heightScore,
         worldCenterOfMassYFromSnapshot(lastSnapshot, PHYSICS_V1.egg.centerOfMassY),
-        FOUNDATION_LEVEL_DEFINITION.origin[1],
+        level.origin[1],
         simulation.tick,
       )
     }
@@ -169,8 +155,8 @@ export async function runReplay(replay: Replay, limits: ReplayLimits = DEFAULT_R
       clientFingerprintMatches: replay.clientFingerprint === undefined ? null : replay.clientFingerprint === fingerprint,
       maxHeightMm: heightScore.maxHeightMm,
       firstTickAtMaxHeight: heightScore.firstTickAtMaxHeight,
-      completed: false,
-      completionTick: null,
+      completed: (lastSnapshot ?? simulation.snapshot()).gameplay.completionTick !== null,
+      completionTick: (lastSnapshot ?? simulation.snapshot()).gameplay.completionTick,
     }
   } finally {
     simulation.free()

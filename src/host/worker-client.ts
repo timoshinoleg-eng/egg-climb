@@ -14,6 +14,8 @@ import {
 } from '../sim/config.js'
 import { computePhysicsPresetHash, immutablePhysicsPreset, PHYSICS_V1 } from '../sim/physics-presets.js'
 import type { PhysicsPreset } from '../sim/physics-presets.js'
+import { FOUNDATION_LEVEL } from '../sim/level.js'
+import type { ResolvedLevel } from '../sim/level.js'
 import type { SimulationSnapshot, TickInput } from '../sim/contracts.js'
 import type { SimulationFrame, SimulationHost } from './contracts.js'
 import { assertTickInputs } from './validation.js'
@@ -41,15 +43,22 @@ export class WorkerSimulationHost implements SimulationHost {
 
   private readonly expectedFeel: FeelPreset
   private readonly expectedPreset: PhysicsPreset
+  private readonly expectedLevel: ResolvedLevel
 
   constructor(
-    url: string | URL, expectedPreset: PhysicsPreset = PHYSICS_V1, expectedFeel: FeelPreset = DEFAULT_FEEL,
+    url: string | URL,
+    expectedPreset: PhysicsPreset = PHYSICS_V1,
+    expectedFeel: FeelPreset = DEFAULT_FEEL,
+    expectedLevel: ResolvedLevel = FOUNDATION_LEVEL,
     private readonly requestTimeoutMs = WORKER_REQUEST_TIMEOUT_MS,
   ) {
     if (!Number.isFinite(requestTimeoutMs) || requestTimeoutMs <= 0) throw new Error('Invalid worker request timeout')
     this.expectedPreset = immutablePhysicsPreset(expectedPreset)
     this.expectedFeel = immutableFeelPreset(expectedFeel)
-    this.worker = new Worker(url, { type: 'module', name: 'egg-climb-simulation' })
+    this.expectedLevel = expectedLevel
+    const workerUrl = new URL(url, globalThis.location?.href)
+    workerUrl.searchParams.set('level', expectedLevel.id)
+    this.worker = new Worker(workerUrl, { type: 'module', name: 'egg-climb-simulation' })
     this.worker.addEventListener('message', (event: MessageEvent<WorkerResponse>) => {
       const response = event.data
       if (!response || typeof response !== 'object' || !Number.isInteger(response.id) || typeof response.type !== 'string') {
@@ -141,6 +150,10 @@ export class WorkerSimulationHost implements SimulationHost {
       info.eggColliderId !== EGG_COLLIDER_ID ||
       info.eggColliderVersion !== EGG_COLLIDER_VERSION ||
       info.eggColliderHash !== EGG_COLLIDER_HASH
+      || info.levelId !== this.expectedLevel.id
+      || info.levelVersion !== this.expectedLevel.version
+      || info.levelFormatVersion !== this.expectedLevel.formatVersion
+      || info.levelHash !== this.expectedLevel.hash
     ) {
       this.fail(new Error('Simulation worker runtime handshake mismatch'))
       throw new Error('Simulation worker runtime handshake mismatch')

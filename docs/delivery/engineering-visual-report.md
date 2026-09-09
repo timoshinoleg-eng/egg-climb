@@ -16,8 +16,8 @@ Canvas 2D только отображает planar Rapier-позы; отдель
 - **PR:** https://github.com/timoshinoleg-eng/egg-climb/pull/13 — ready for review.
 - **Ветка:** `arena/01a087f3-egg-climb`, закреплённая за Arena-сессией.
 - **Baseline SHA:** `ec520776c2ca186bd10d3959d723670ee7e30856`.
-- **Runtime-код основной поставки:** `58dbadba996bbed1ce4df04b91cfe591b59cceca`.
-- **Полный CI:** https://github.com/timoshinoleg-eng/egg-climb/actions/runs/34407859412 — SUCCESS.
+- **Аркадная основа первоначальной поставки:** `58dbadba996bbed1ce4df04b91cfe591b59cceca`.
+- **CI первоначальной поставки:** https://github.com/timoshinoleg-eng/egg-climb/actions/runs/34407859412 — SUCCESS.
 - **Коммиты:** `a9719e3` — core; `c4f1b9a` — visuals; `58dbadb` — tests.
 - Новых production/dev-зависимостей и скачанных art-паков в проект не добавлено.
   Геометрия, фон, персонаж и SVG-марка созданы в коде.
@@ -83,16 +83,16 @@ sinks. Реальных `.env`/секретов среди коммитов не
 | --- | --- |
 | `npm ci`, Node 22 | PASS |
 | `npm run build` / strict TypeScript | PASS |
-| `npm test` локально | **134 PASS**, 0 failed/skipped; было 95 |
+| `npm test` локально | **148 PASS**, 0 failed/skipped; исходный baseline — 95 |
 | AST determinism + существующие golden/replay проверки | PASS; ожидаемые fingerprints не переписаны |
-| Chromium Playwright локально | **15 PASS** |
+| Chromium Playwright локально | **16 PASS** |
 | Node CI: Linux x64 / Windows x64 / macOS arm64 | **PASS / PASS / PASS** |
 | Полный browser CI: pinned Chromium / Firefox / WebKit | **PASS** |
 | Static package: lab/MAX + arcade под `/egg-climb/` | PASS |
 | `npm audit --audit-level=high` | **0 vulnerabilities** |
 | 60 Hz mobile-viewport smoke | **PASS** — показатели ниже |
 
-Матрица регистрирует **45 browser cases**; восемь прежних исключений
+После интеграции Kitchen матрица регистрирует **48 browser cases**; восемь прежних исключений
 диагностического WebGL UI на Firefox/WebKit сохранены. Семь новых аркадных
 сценариев зарегистрированы для каждого из трёх движков, без новых skip.
 CI-статус подтверждён через Jobs/Checks API: все четыре job и install/typecheck/test
@@ -122,17 +122,35 @@ PR переведён в ready for review. Локальный environment failur
 [PR #13 Checks](https://github.com/timoshinoleg-eng/egg-climb/pull/13/checks).
 Замеры FPS ниже относятся к исходной поставке, а не к новому физическому устройству.
 
+### Интеграция параллельного PR #12
+
+В `main` слита Kitchen authoritative foundation (`38ef551`), что создало конфликт
+в Worker API и остановило создание новых PR checks. Изменения объединены внутри
+ветки сессии; `main` из этой работы не изменялся.
+
+Сохранены protocol v5 и level identity checks, доверенный каталог уровней,
+кинематические платформы, steam, launch и настоящий Kitchen Finish. Watchdog
+перенесён в пятый параметр конструктора рядом с четвёртым `expectedLevel`.
+Cloud Garden использует явный non-competitive `fixtureStaticBoxes`, не расширяет
+trusted registry и не выставляет authoritative completion при локальном summit.
+
+После объединения: **148 unit PASS**, **16 Chromium Playwright PASS**. Обе
+регрессионные подписи неизменны: Foundation `4f677949`, Kitchen `24f443e7`
+(completion 1167, terminal 1287). Старый зелёный CI не выдаётся за проверку нового
+head: актуальная расширенная матрица отслеживается в
+[PR #13 Checks](https://github.com/timoshinoleg-eng/egg-climb/pull/13/checks).
+
 ### Измерение производительности
 
-`npm run test:perf`, 390×844, device DPR 2, шесть секунд реальных повторных прыжков:
+`npm run test:perf` повторён после интеграции Kitchen: 390×844, device DPR 2, шесть секунд реальных повторных прыжков:
 
 | Метрика | Измерено |
 | --- | --- |
-| Кадры / интервал | 361 / 6007.7 ms |
+| Кадры / интервал | 361 / 6008.0 ms |
 | Средний FPS | **60.09** |
 | Frame p95 / max | **16.80 / 16.80 ms** |
 | Кадров >20 ms | **0** |
-| Main-thread render work p95 | **0.80 ms** |
+| Main-thread render work p95 | **0.60 ms** |
 | Quality / effective DPR | medium / 1.5 |
 | Browser errors | 0 |
 

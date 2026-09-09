@@ -2,13 +2,13 @@ import { DEFAULT_FEEL, immutableFeelPreset, computeFeelPresetHash } from './feel
 import type { FeelPreset } from './feel-presets.js'
 import { createFeelState, stepFeel, serializeFeelState, debugFeelState } from './feel-controller.js'
 import type { FeelState, FeelJump } from './feel-controller.js'
-import { SIMULATION_VERSION, RAPIER_PACKAGE, RAPIER_VERSION, PHYSICS_DT } from './config.js'
+import { LEVEL_GAMEPLAY_STATE_VERSION, SIMULATION_VERSION, RAPIER_PACKAGE, RAPIER_VERSION, PHYSICS_DT } from './config.js'
 import type { EggInitialState, PhysicsDebugSnapshot, SimulationSnapshot, TickInput } from './contracts.js'
 import { EGG_COLLIDER_HASH, EGG_COLLIDER_ID, EGG_COLLIDER_VERSION } from './config.js'
 import { createEggColliderIndices, createEggColliderVertices, EGG_COLLIDER_MAX_Y, EGG_COLLIDER_MIN_Y } from './egg-collider.js'
 import { fingerprintSimulationState } from './fingerprint.js'
-import { FOUNDATION_LEVEL } from './level.js'
-import type { StaticBoxDefinition } from './level.js'
+import { FOUNDATION_LEVEL, assertTrustedResolvedLevel, kinematicOffsetAtTick } from './level.js'
+import type { KinematicBoxDefinition, ResolvedLevel, StaticBoxDefinition, VolumeDefinition } from './level.js'
 import { computePhysicsPresetHash, immutablePhysicsPreset, PHYSICS_V1 } from './physics-presets.js'
 import type { JumpDirectionModel, PhysicsPreset } from './physics-presets.js'
 import type { RapierApi } from './rapier.js'
@@ -25,7 +25,9 @@ export interface Simulation {
 export interface SimulationOptions {
   readonly feel?: FeelPreset
   readonly preset?: PhysicsPreset
-  readonly level?: readonly StaticBoxDefinition[]
+  readonly level?: ResolvedLevel
+  /** Non-competitive local-practice / Physics Lab geometry; replay execution never uses it. */
+  readonly fixtureStaticBoxes?: readonly StaticBoxDefinition[]
   readonly initialEgg?: EggInitialState
 }
 
@@ -33,7 +35,8 @@ export function immutableSimulationOptions(options: SimulationOptions): Simulati
   return Object.freeze({
     preset: immutablePhysicsPreset(options.preset ?? PHYSICS_V1),
     feel: immutableFeelPreset(options.feel ?? DEFAULT_FEEL),
-    ...(options.level ? { level: Object.freeze(options.level.map(box => Object.freeze({
+    ...(options.level ? { level: options.level } : {}),
+    ...(options.fixtureStaticBoxes ? { fixtureStaticBoxes: Object.freeze(options.fixtureStaticBoxes.map(box => Object.freeze({
       ...box, center: Object.freeze([...box.center] as [number, number, number]),
       halfExtents: Object.freeze([...box.halfExtents] as [number, number, number]),
       ...(box.rotation ? { rotation: Object.freeze([...box.rotation] as [number, number, number, number]) } : {}),
@@ -225,7 +228,20 @@ function writeAscii(target: number[], value: string): void {
   }
 }
 
-function authoritativeStateBytes(preset: PhysicsPreset, feel: FeelPreset, state: FeelState): Uint8Array {
+export function serializeLevelGameplayState(level: ResolvedLevel, completionTick: number | null, launchZoneInside: readonly boolean[]): Uint8Array {
+  if (level.formatVersion === 1) return new Uint8Array(0)
+  if (completionTick !== null && (!Number.isSafeInteger(completionTick) || completionTick <= 0)) throw new Error('Invalid completion tick')
+  const expectedZones = level.definition.formatVersion === 2 ? level.definition.launchZones.length : 0
+  if (launchZoneInside.length !== expectedZones) throw new Error('Launch-zone state length mismatch')
+  const bytes: number[] = [0x4b, 0x4c, 0x56, 0x32]
+  writeU32(bytes, LEVEL_GAMEPLAY_STATE_VERSION)
+  writeAscii(bytes, level.id); writeU32(bytes, level.version); writeAscii(bytes, level.hash)
+  writeU32(bytes, completionTick === null ? 0xffffffff : completionTick); writeU32(bytes, launchZoneInside.length)
+  for (const inside of launchZoneInside) bytes.push(inside ? 1 : 0)
+  return Uint8Array.from(bytes)
+}
+
+function authoritativeStateBytes(preset: PhysicsPreset, feel: FeelPreset, state: FeelState, level: ResolvedLevel, completionTick: number | null, launchZoneInside: readonly boolean[]): Uint8Array {
   const bytes: number[] = []
   bytes.push(0x50, 0x48, 0x59, 0x53) // PHYS
   writeAscii(bytes, preset.id)
@@ -240,7 +256,27 @@ function authoritativeStateBytes(preset: PhysicsPreset, feel: FeelPreset, state:
   const stateBytes = serializeFeelState(state)
   writeU32(bytes, stateBytes.length)
   for (const byte of stateBytes) bytes.push(byte)
+  // Preserve byte-for-byte Foundation v1 fingerprints; v2 appends a tagged schema.
+  for (const byte of serializeLevelGameplayState(level, completionTick, launchZoneInside)) bytes.push(byte)
   return Uint8Array.from(bytes)
+}
+
+function containsPoint(volume: VolumeDefinition, point: Vector3): boolean {
+  return Math.abs(point.x - volume.center[0]) <= volume.halfExtents[0]
+    && Math.abs(point.y - volume.center[1]) <= volume.halfExtents[1]
+    && Math.abs(point.z - volume.center[2]) <= volume.halfExtents[2]
+}
+
+export function advanceLaunchZoneEdge(wasInside: boolean, isInside: boolean): Readonly<{ inside: boolean; activated: boolean }> {
+  return { inside: isInside, activated: isInside && !wasInside }
+}
+
+function createKinematicBox(RAPIER: RapierApi, world: InstanceType<RapierApi['World']>, box: KinematicBoxDefinition) {
+  const [x, y, z] = box.center
+  const bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(x, y, z)
+  const body = world.createRigidBody(bodyDesc)
+  world.createCollider(RAPIER.ColliderDesc.cuboid(...box.halfExtents).setFriction(box.friction), body)
+  return body
 }
 
 function createStaticBox(RAPIER: RapierApi, world: InstanceType<RapierApi['World']>, box: StaticBoxDefinition): void {
@@ -258,12 +294,18 @@ function createStaticBox(RAPIER: RapierApi, world: InstanceType<RapierApi['World
 export function createSimulationWithRapier(RAPIER: RapierApi, options: SimulationOptions = {}): Simulation {
   const preset = immutablePhysicsPreset(options.preset ?? PHYSICS_V1)
   const feel = immutableFeelPreset(options.feel ?? DEFAULT_FEEL)
+  const rawFixture = options.fixtureStaticBoxes
   const level = options.level ?? FOUNDATION_LEVEL
-  const initial = options.initialEgg ?? DEFAULT_EGG_STATE
+  assertTrustedResolvedLevel(level)
+  const definition = level.definition
+  const staticBoxes = rawFixture ?? definition.staticBoxes
+  const initial = options.initialEgg ?? (definition.formatVersion === 2 ? { ...DEFAULT_EGG_STATE, position: definition.spawn } : DEFAULT_EGG_STATE)
   const world = new RAPIER.World({ x: 0, y: preset.gravityY, z: 0 })
   world.timestep = PHYSICS_DT
 
-  for (const box of level) createStaticBox(RAPIER, world, box)
+  for (const box of staticBoxes) createStaticBox(RAPIER, world, box)
+  const kinematicDefinitions = rawFixture || definition.formatVersion === 1 ? [] : definition.kinematicBoxes
+  const kinematicBodies = kinematicDefinitions.map(box => createKinematicBox(RAPIER, world, box))
 
   const [px, py, pz] = initial.position
   const [qx, qy, qz, qw] = initial.rotation
@@ -305,6 +347,7 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
     physicsPresetHash: computePhysicsPresetHash(preset),
     eggColliderId: EGG_COLLIDER_ID, eggColliderVersion: EGG_COLLIDER_VERSION,
     eggColliderHash: EGG_COLLIDER_HASH,
+    levelId: level.id, levelVersion: level.version, levelFormatVersion: level.formatVersion, levelHash: level.hash,
   })
 
   let tick = 0
@@ -312,9 +355,39 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
   let lastJumpTick = -1
   let lastJumpSource: FeelJump['source'] | null = null
   let lastJumpStrength = 0
+  let completionTick: number | null = null
+  const launchZoneInside = definition.formatVersion === 2 ? definition.launchZones.map(() => false) : []
+  let activeContinuousForceZoneIds: string[] = []
+  let activatedLaunchZoneIds: string[] = []
   return {
     get tick() { return tick },
     step(input) {
+      activeContinuousForceZoneIds = []
+      activatedLaunchZoneIds = []
+      for (let index = 0; index < kinematicDefinitions.length; index += 1) {
+        const box = kinematicDefinitions[index] as KinematicBoxDefinition
+        const offset = kinematicOffsetAtTick(box, tick + 1)
+        kinematicBodies[index]?.setNextKinematicTranslation({ x: box.center[0] + offset[0], y: box.center[1] + offset[1], z: box.center[2] + offset[2] })
+      }
+      if (!rawFixture && definition.formatVersion === 2) {
+        const position = egg.translation()
+        for (const zone of definition.continuousForceZones) {
+          if (containsPoint(zone, position)) {
+            egg.applyImpulse({ x: zone.impulsePerTick[0], y: zone.impulsePerTick[1], z: zone.impulsePerTick[2] }, true)
+            activeContinuousForceZoneIds.push(zone.id)
+          }
+        }
+        for (let index = 0; index < definition.launchZones.length; index += 1) {
+          const zone = definition.launchZones[index] as typeof definition.launchZones[number]
+          const inside = containsPoint(zone, position)
+          const edge = advanceLaunchZoneEdge(launchZoneInside[index] as boolean, inside)
+          if (edge.activated) {
+            egg.applyImpulse({ x: zone.impulse[0], y: zone.impulse[1], z: zone.impulse[2] }, true)
+            activatedLaunchZoneIds.push(zone.id)
+          }
+          launchZoneInside[index] = edge.inside
+        }
+      }
       const moveX = clampAxis(input.moveX)
       const moveZ = feel.dimensionMode === '2.5d' ? 0 : clampAxis(input.moveZ)
       if (moveX !== 0 || moveZ !== 0) {
@@ -344,6 +417,10 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
 
       world.step()
       tick += 1
+      if (completionTick === null && !rawFixture && definition.formatVersion === 2) {
+        const position = egg.translation()
+        if (definition.finishVolumes.some(volume => containsPoint(volume, position))) completionTick = tick
+      }
     },
     snapshot() {
       const p = egg.translation(); const r = egg.rotation(); const lv = egg.linvel(); const av = egg.angvel()
@@ -357,13 +434,14 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
         linearVelocity: { x: lv.x, y: lv.y, z: lv.z },
         angularVelocity: { x: av.x, y: av.y, z: av.z },
         physics: physicsDebug(support, r, preset),
+        gameplay: { completionTick, launchZoneInside: [...launchZoneInside], activeContinuousForceZoneIds: [...activeContinuousForceZoneIds], activatedLaunchZoneIds: [...activatedLaunchZoneIds] },
       }
     },
     takePhysicsSnapshot() { return world.takeSnapshot() },
     fingerprint() {
       return fingerprintSimulationState({
         tick,
-        authoritativeState: authoritativeStateBytes(preset, feel, feelState),
+        authoritativeState: authoritativeStateBytes(preset, feel, feelState, level, completionTick, launchZoneInside),
         physicsSnapshot: world.takeSnapshot(),
       })
     },

@@ -6,10 +6,10 @@
 | --- | --- |
 | Node environment | 22.22.3 / Linux x64, matches `.nvmrc` |
 | TypeScript build | PASS |
-| `npm test` | **134 PASS, 0 failed, 0 skipped** (95 baseline + 39 regressions) |
+| `npm test` | **148 PASS, 0 failed, 0 skipped** (107 updated-main tests + 41 branch regressions) |
 | Deterministic AST boundary | PASS |
 | Historical golden replay / fingerprints | PASS, expected values unchanged |
-| Chromium Playwright suite | **15 PASS**, including all 7 new arcade scenarios |
+| Chromium Playwright suite | **16 PASS**, including all 7 arcade scenarios and the Kitchen replay witness |
 | `npm audit --audit-level=high` | 0 vulnerabilities; no dependency additions |
 | Static package | Runtime-only assets; arcade + legacy MAX links work under `/egg-climb/` |
 
@@ -29,9 +29,9 @@ explicit `PLAYWRIGHT_CHROMIUM_EXECUTABLE` override in this sandbox.
   libraries live outside the repository and are not dependencies/artifacts in Git.
 - Mobile viewport **390 × 844**, deviceScaleFactor **2**.
 - Six seconds of real repeated keyboard jumps after warm-up.
-- **361 frames / 6007.7 ms**, average **60.09 FPS**.
+- **361 frames / 6008.0 ms**, average **60.09 FPS**.
 - Frame **p95 16.80 ms**, max **16.80 ms**, **0 frames over 20 ms**.
-- Main-thread render work **p95 0.80 ms**.
+- Main-thread render work **p95 0.60 ms**.
 - Adaptive quality **medium**, effective Canvas DPR **1.5** (device DPR remains 2).
 - Browser errors: **0**. Smoke gate: **PASS**.
 
@@ -104,3 +104,28 @@ physics presets and existing golden values are unchanged by this follow-up.
 The previously measured rendering budget is therefore not a new performance
 measurement. Current branch CI is linked from
 [PR #13 Checks](https://github.com/timoshinoleg-eng/egg-climb/pull/13/checks).
+
+
+## Concurrent Kitchen integration
+
+Main advanced through PR #12 (`38ef55154df98a27fd7dd32f6f0b7992f32606de`) during
+the follow-up. Its conflict with the Worker constructor prevented a new PR CI
+run; old green checks were not treated as validation of the new head.
+
+The merge keeps protocol v5 level binding and Kitchen's trusted registry,
+kinematics, steam, launch and authoritative Finish. It combines the fourth
+`expectedLevel` parameter with a fifth watchdog timeout, migrates Cloud Garden
+to explicit non-competitive `fixtureStaticBoxes`, and updates diagnostic render
+geometry access. No Kitchen witness or historical golden was rewritten.
+
+After integration: **148 unit PASS**, **16 Chromium Playwright PASS**, including
+Foundation `4f677949` and Kitchen `24f443e7` with completion tick 1167 / terminal
+tick 1287. The three-engine browser suite now registers **48 cases**, retaining
+only the eight existing non-Chromium diagnostic-UI exclusions. Added Worker
+regressions verify that timeout handling cannot weaken level identity checks.
+
+The mobile-viewport FPS smoke was repeated after integration: **60.09 FPS**, frame
+p95/max **16.80 ms**, render-work p95 **0.60 ms**, 361 frames / 6008.0 ms,
+**0 frames >20 ms**, effective DPR 1.5 on device DPR 2, no browser errors. The
+metrics above now refer to this integrated run. Current cross-platform CI is
+tracked by [PR #13 Checks](https://github.com/timoshinoleg-eng/egg-climb/pull/13/checks).

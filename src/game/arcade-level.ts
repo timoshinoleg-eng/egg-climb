@@ -37,5 +37,7 @@ export const ARCADE_INITIAL_EGG: EggInitialState = Object.freeze({
 })
 export const ARCADE_OPTIONS = Object.freeze({
   preset: ARCADE_PHYSICS, feel: ARCADE_FEEL,
-  level: ARCADE_LEVEL.staticBoxes, initialEgg: ARCADE_INITIAL_EGG,
+  // Explicitly non-competitive geometry. Keep the authoritative Foundation /
+  // Kitchen registry and its level-identity validation closed and unchanged.
+  fixtureStaticBoxes: ARCADE_LEVEL.staticBoxes, initialEgg: ARCADE_INITIAL_EGG,
 })

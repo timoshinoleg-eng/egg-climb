@@ -21,6 +21,7 @@ import type { Simulation } from '../sim/simulation-core.js'
 import { collectSimulationPresentationEvents } from './presentation-events.js'
 import { assertTickInputs } from './validation.js'
 import type { WorkerRequest, WorkerResponse, WorkerRuntimeInfo } from './worker-protocol.js'
+import { FOUNDATION_LEVEL } from '../sim/level.js'
 
 const RUNTIME_INFO: WorkerRuntimeInfo = Object.freeze({
   feelPresetId: DEFAULT_FEEL.id, feelPresetVersion: DEFAULT_FEEL.version, feelPresetHash: computeFeelPresetHash(DEFAULT_FEEL),
@@ -35,6 +36,8 @@ const RUNTIME_INFO: WorkerRuntimeInfo = Object.freeze({
   eggColliderId: EGG_COLLIDER_ID,
   eggColliderVersion: EGG_COLLIDER_VERSION,
   eggColliderHash: EGG_COLLIDER_HASH,
+  levelId: FOUNDATION_LEVEL.id, levelVersion: FOUNDATION_LEVEL.version,
+  levelFormatVersion: FOUNDATION_LEVEL.formatVersion, levelHash: FOUNDATION_LEVEL.hash,
 })
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -98,7 +101,8 @@ export class SimulationWorkerRuntime {
       if (request.type === 'init') {
         if (this.simulation) return this.error(id, 'Simulation worker is already initialized')
         const snapshot = this.createFreshSimulation()
-        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'initialized', snapshot, runtimeInfo: { ...RUNTIME_INFO, feelPresetId: (this.options.feel ?? DEFAULT_FEEL).id, feelPresetVersion: (this.options.feel ?? DEFAULT_FEEL).version, feelPresetHash: computeFeelPresetHash(this.options.feel ?? DEFAULT_FEEL), physicsPresetId: (this.options.preset ?? PHYSICS_V1).id, physicsPresetVersion: (this.options.preset ?? PHYSICS_V1).version, physicsPresetHash: computePhysicsPresetHash(this.options.preset ?? PHYSICS_V1) } }
+        const level = this.options.level ?? FOUNDATION_LEVEL
+        return { id, protocolVersion: WORKER_PROTOCOL_VERSION, type: 'initialized', snapshot, runtimeInfo: { ...RUNTIME_INFO, feelPresetId: (this.options.feel ?? DEFAULT_FEEL).id, feelPresetVersion: (this.options.feel ?? DEFAULT_FEEL).version, feelPresetHash: computeFeelPresetHash(this.options.feel ?? DEFAULT_FEEL), physicsPresetId: (this.options.preset ?? PHYSICS_V1).id, physicsPresetVersion: (this.options.preset ?? PHYSICS_V1).version, physicsPresetHash: computePhysicsPresetHash(this.options.preset ?? PHYSICS_V1), levelId: level.id, levelVersion: level.version, levelFormatVersion: level.formatVersion, levelHash: level.hash } }
       }
 
       if (!this.simulation || !this.current) return this.error(id, 'Simulation worker is not initialized')

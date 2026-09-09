@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { encodeFingerprintEnvelope, fingerprintSimulationState } from '../dist/sim/index.js'
+import { KITCHEN_LEVEL, encodeFingerprintEnvelope, fingerprintSimulationState, serializeLevelGameplayState } from '../dist/sim/index.js'
 
 const PHYSICS = Uint8Array.from([1, 2, 3, 4])
 
@@ -11,6 +11,16 @@ test('fingerprint envelope binds tick and authoritative app-state', () => {
   assert.notEqual(base, differentTick)
   assert.notEqual(base, differentAppState)
   assert.equal(base, fingerprintSimulationState({ tick: 10, authoritativeState: new Uint8Array(0), physicsSnapshot: PHYSICS }))
+})
+
+test('Kitchen lifecycle serialization binds launch membership and first completion tick', () => {
+  const outside = serializeLevelGameplayState(KITCHEN_LEVEL, null, [false])
+  const inside = serializeLevelGameplayState(KITCHEN_LEVEL, null, [true])
+  const completed1 = serializeLevelGameplayState(KITCHEN_LEVEL, 1, [true])
+  const completed2 = serializeLevelGameplayState(KITCHEN_LEVEL, 2, [true])
+  assert.notDeepEqual(outside, inside)
+  assert.notDeepEqual(inside, completed1)
+  assert.notDeepEqual(completed1, completed2)
 })
 
 test('fingerprint envelope is canonical and rejects invalid ticks', () => {

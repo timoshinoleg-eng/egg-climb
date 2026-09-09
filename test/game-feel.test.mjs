@@ -15,7 +15,7 @@ async function runFeel(key, inputs, initialEgg) {
   const simulation = await createSimulation({
     preset: PHYSICS_V1,
     feel: FEEL_PRESETS[key],
-    level: scenario.level,
+    fixtureStaticBoxes: scenario.level,
     initialEgg: initialEgg ?? scenario.initialEgg,
   })
   try {
@@ -60,7 +60,7 @@ test('2.5d constrains Z translation and X/Y rotation while 3d retains them', asy
 test('hold release produces distinct short and long real jump apexes', async () => {
   const scenario = physicsLabScenario('jump-base')
   async function apex(inputs) {
-    const simulation = await createSimulation({ preset: PHYSICS_V1, feel: FEEL_PRESETS['3d-hold'], level: scenario.level, initialEgg: scenario.initialEgg })
+    const simulation = await createSimulation({ preset: PHYSICS_V1, feel: FEEL_PRESETS['3d-hold'], fixtureStaticBoxes: scenario.level, initialEgg: scenario.initialEgg })
     try {
       simulation.step(NEUTRAL)
       const start = simulation.snapshot()
@@ -84,7 +84,7 @@ test('hold release produces distinct short and long real jump apexes', async () 
 
 test('hold cancellation does not launch or leave a held charge', async () => {
   const scenario = physicsLabScenario('jump-base')
-  const simulation = await createSimulation({ preset: PHYSICS_V1, feel: FEEL_PRESETS['3d-hold'], level: scenario.level, initialEgg: scenario.initialEgg })
+    const simulation = await createSimulation({ preset: PHYSICS_V1, feel: FEEL_PRESETS['3d-hold'], fixtureStaticBoxes: scenario.level, initialEgg: scenario.initialEgg })
   try {
     simulation.step({ ...NEUTRAL, jumpDown: true })
     for (let i = 0; i < 10; i += 1) simulation.step(NEUTRAL)
@@ -100,7 +100,7 @@ test('tip assist reduces actual angular departure while charging on tip contact'
   const scenario = physicsLabScenario('jump-tip')
   const speeds = []
   for (const key of ['2d-hold', '2d-hold-assist']) {
-    const simulation = await createSimulation({ feel: FEEL_PRESETS[key], level: scenario.level, initialEgg: {
+    const simulation = await createSimulation({ feel: FEEL_PRESETS[key], fixtureStaticBoxes: scenario.level, initialEgg: {
       ...scenario.initialEgg, position: [0, 0.8, 0], rotation: [0, 0, 0.9990482216, -0.0436193874], angularVelocity: [0, 0, 0.2],
     } })
     try {

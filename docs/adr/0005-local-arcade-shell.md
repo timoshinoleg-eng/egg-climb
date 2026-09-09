@@ -59,3 +59,28 @@ malformed data, quota error or private mode falls back to memory. There is no DB
 network call in gameplay. The preview server allowlists runtime paths and checks
 resolved symlink destinations; it never serves `.git`, `.env`, SQL or source
 secrets. Deployment serves only packaged static files, never the checkout.
+
+
+## Integration with Kitchen authoritative foundation (PR #12)
+
+The concurrent Kitchen merge `38ef55154df98a27fd7dd32f6f0b7992f32606de` is
+preserved, not replaced by the arcade shell:
+
+- Worker protocol v5 binds the selected trusted level. `WorkerSimulationHost`
+  keeps `expectedLevel` as argument four; the optional request timeout is argument
+  five. URL level selection, all four level identity checks, watchdogs and
+  synchronous teardown coexist and have regression coverage.
+- Cloud Garden explicitly uses `fixtureStaticBoxes`, the non-competitive geometry
+  seam. It does not inject a fabricated descriptor into `SUPPORTED_LEVELS` or
+  weaken `assertTrustedResolvedLevel`. Foundation/Kitchen remain the canonical
+  registry; the local-practice snapshot's baseline descriptor is not a claim
+  that its fixture geometry is eligible for canonical replay acceptance.
+- Kitchen kinematics, continuous steam, edge-triggered launch, first-tick Finish
+  latch, and tagged v2 authoritative state stay intact. The local arcade summit
+  does not set `snapshot.gameplay.completionTick`.
+- The laboratory renderer reads `FOUNDATION_LEVEL.definition.staticBoxes` after
+  the descriptor migration. Diagnostic fixture export and subpath packaging are
+  still supported.
+- Foundation golden `4f677949` and Kitchen witness `24f443e7` (completion tick 1167,
+  terminal tick 1287) remain unchanged. The full nine-leaf local arcade route also
+  still reaches its summit with 1900 points at tick 1728.
