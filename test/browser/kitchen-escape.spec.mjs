@@ -15,7 +15,7 @@ test('Kitchen Escape rendered graybox boots on mobile, moves, jumps and retries'
 
   const initial = await page.evaluate(() => window.__eggKitchenPlaytest?.getState())
   expect(initial).toBeTruthy()
-  expect(initial.levelId).toBe('kitchen-escape-graybox')
+  expect(initial.levelId).toBe('kitchen-escape-v1')
   expect(initial.section).toBe('table')
   expect(initial.ended).toBe(false)
   expect(initial.feel).toBe('2d-tap-assist')
