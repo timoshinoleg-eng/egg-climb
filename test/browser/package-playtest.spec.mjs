@@ -16,6 +16,7 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
     '.css': 'text/css; charset=utf-8',
     '.wasm': 'application/wasm',
     '.json': 'application/json; charset=utf-8',
+    '.svg': 'image/svg+xml',
   }
   const server = createServer(async (request, response) => {
     try {
@@ -60,6 +61,12 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
     expect(record.config.feel).toBe('2d-hold-assist')
     expect(record.samples.some(input => input.jumpDown)).toBe(true)
     expect(record.samples.some(input => input.jumpUp)).toBe(true)
+    await page.goto(`http://127.0.0.1:${port}/egg-climb/`)
+    await expect(page).toHaveURL(/\/egg-climb\/play\/index\.html/)
+    await page.getByRole('button', { name: "Let's climb" }).click()
+    await expect(page.locator('#gameStage')).toHaveAttribute('data-grounded', 'true')
+    await page.keyboard.press('Space')
+    await expect.poll(async () => Number(await page.locator('#score').textContent())).toBeGreaterThan(0)
     expect(missing).toEqual([])
     expect(errors).toEqual([])
   } finally {
