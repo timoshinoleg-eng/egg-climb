@@ -18,19 +18,68 @@ import { canonicalLevelSha256 } from '../dist/server/daily-contracts.js'
 
 const initialEgg = position => ({ position, rotation: [0, 0, 0, 1], linearVelocity: [0, 0, 0], angularVelocity: [0, 0, 0] })
 
-function kitchenWitnessInputEvents(finishTick, jumpInterval = 12, moveX = 1) {
-  const events = [{ tick: 0, seq: 0, kind: 'move', moveX, moveZ: 0 }]
-  if (jumpInterval !== null) {
-    for (let tick = jumpInterval; tick + 1 < finishTick; tick += jumpInterval) {
-      events.push({ tick, seq: 0, kind: 'jump', down: true })
-      events.push({ tick: tick + 1, seq: 0, kind: 'jump', down: false })
-    }
-  }
-  return events
-}
-
 function withCollection(name, value) {
   return { ...KITCHEN_LEVEL_DEFINITION, [name]: value }
+}
+
+function appendReplayEvent(events, tick, event) {
+  const last = events.at(-1)
+  const seq = last?.tick === tick ? last.seq + 1 : 0
+  events.push({ tick, seq, ...event })
+}
+
+async function discoverKitchenWitness({ moveMagnitude, finishMoveMagnitude, jumpCooldown }) {
+  const finishTick = 1800
+  const routeTargets = [13, 15.5, 18, 20.5, 22.5, 24.5, 27]
+  const sim = await createSimulation({ level: KITCHEN_LEVEL })
+  const events = []
+  let moveX = 0
+  let jumpHeld = false
+  let lastJumpTick = -1000
+  let targetIndex = 0
+  let maxX = -Infinity
+  let maxY = -Infinity
+  try {
+    for (let tick = 0; tick < finishTick; tick += 1) {
+      const snapshot = sim.snapshot()
+      maxX = Math.max(maxX, snapshot.position.x)
+      maxY = Math.max(maxY, snapshot.position.y)
+      if (snapshot.gameplay.completionTick !== null) {
+        return { completed: true, completionTick: snapshot.gameplay.completionTick, terminalTick: tick, events, maxX, maxY, fingerprint: sim.fingerprint() }
+      }
+
+      while (targetIndex < routeTargets.length - 1 && snapshot.position.x >= routeTargets[targetIndex] - 0.35) targetIndex += 1
+      const targetX = routeTargets[targetIndex]
+      const error = targetX - snapshot.position.x
+      const magnitude = targetIndex === routeTargets.length - 1 ? finishMoveMagnitude : moveMagnitude
+      const desiredMoveX = Math.abs(error) <= 0.2 ? 0 : Math.sign(error) * magnitude
+      if (desiredMoveX !== moveX) {
+        moveX = desiredMoveX
+        appendReplayEvent(events, tick, { kind: 'move', moveX, moveZ: 0 })
+      }
+
+      let jumpDown = false
+      let jumpUp = false
+      if (jumpHeld) {
+        jumpHeld = false
+        jumpUp = true
+        appendReplayEvent(events, tick, { kind: 'jump', down: false })
+      } else if (snapshot.physics.grounded && tick - lastJumpTick >= jumpCooldown && snapshot.position.x < 26.6) {
+        jumpHeld = true
+        jumpDown = true
+        lastJumpTick = tick
+        appendReplayEvent(events, tick, { kind: 'jump', down: true })
+      }
+
+      sim.step({ moveX, moveZ: 0, jumpDown, jumpUp })
+    }
+    const snapshot = sim.snapshot()
+    maxX = Math.max(maxX, snapshot.position.x)
+    maxY = Math.max(maxY, snapshot.position.y)
+    return { completed: false, completionTick: null, terminalTick: finishTick, events, maxX, maxY, x: snapshot.position.x, y: snapshot.position.y, fingerprint: sim.fingerprint() }
+  } finally {
+    sim.free()
+  }
 }
 
 test('Kitchen v2 canonical identity is stable and trusted resolution fails closed', async () => {
@@ -177,19 +226,26 @@ test('Kitchen neutral replay does not self-complete', async () => {
   assert.equal(neutral.completionTick, null)
 })
 
-test('Kitchen authored-input witness candidates identify a real player-driven completion', async () => {
-  const finishTick = 1200
+test('Kitchen grounded-feedback finder discovers a player-driven witness', async () => {
   const candidates = []
-  for (const moveX of [0.5, 0.75, 1]) {
-    for (const jumpInterval of [null, 6, 9, 12, 18, 24, 30]) {
-      const inputEvents = kitchenWitnessInputEvents(finishTick, jumpInterval, moveX)
-      const result = await runReplay({ header: replayHeaderForLevel(KITCHEN_LEVEL), inputEvents, finishTick })
-      candidates.push({ moveX, jumpInterval, inputEvents, result })
-      console.log(`[kitchen-candidate] moveX=${moveX} jump=${jumpInterval ?? 'none'} completed=${result.completed} completionTick=${result.completionTick} x=${result.snapshot.position.x} y=${result.snapshot.position.y} maxHeightMm=${result.maxHeightMm} fingerprint=${result.fingerprint}`)
+  for (const moveMagnitude of [0.55, 0.7, 0.85, 1]) {
+    for (const finishMoveMagnitude of [0.2, 0.35, 0.5]) {
+      for (const jumpCooldown of [4, 8, 12, 18]) {
+        const result = await discoverKitchenWitness({ moveMagnitude, finishMoveMagnitude, jumpCooldown })
+        candidates.push({ moveMagnitude, finishMoveMagnitude, jumpCooldown, result })
+        console.log(`[kitchen-feedback] move=${moveMagnitude} finishMove=${finishMoveMagnitude} cooldown=${jumpCooldown} completed=${result.completed} completionTick=${result.completionTick} maxX=${result.maxX} maxY=${result.maxY} x=${result.x ?? '-'} y=${result.y ?? '-'} events=${result.events.length} fingerprint=${result.fingerprint}`)
+        if (result.completed) console.log(`[kitchen-feedback-events] ${JSON.stringify(result.events)}`)
+      }
     }
   }
   const winner = candidates.find(candidate => candidate.result.completed)
-  assert.ok(winner, 'No authored-input Kitchen witness completed within the candidate matrix')
-  assert.ok(winner.inputEvents.length > 0)
-  assert.ok(Number.isInteger(winner.result.completionTick) && winner.result.completionTick > 0 && winner.result.completionTick < finishTick)
+  assert.ok(winner, 'No grounded-feedback Kitchen witness completed')
+  assert.ok(winner.result.events.length > 0)
+  assert.ok(Number.isInteger(winner.result.completionTick) && winner.result.completionTick > 0)
+  const replayFinishTick = winner.result.completionTick + 120
+  const replayEvents = winner.result.events.filter(event => event.tick < replayFinishTick)
+  const replay = await runReplay({ header: replayHeaderForLevel(KITCHEN_LEVEL), inputEvents: replayEvents, finishTick: replayFinishTick })
+  assert.equal(replay.completed, true)
+  assert.equal(replay.completionTick, winner.result.completionTick)
+  console.log(`[kitchen-feedback-replay] finishTick=${replayFinishTick} fingerprint=${replay.fingerprint} completionTick=${replay.completionTick} events=${JSON.stringify(replayEvents)}`)
 })
