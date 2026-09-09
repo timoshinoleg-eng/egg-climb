@@ -17,7 +17,7 @@ function scriptedInputs(length = 180) {
 }
 
 async function runLocal(scenario, preset, inputs, chunks) {
-  const host = new LocalSimulationHost({ preset, level: scenario.level, initialEgg: scenario.initialEgg })
+  const host = new LocalSimulationHost({ preset, fixtureStaticBoxes: scenario.level, initialEgg: scenario.initialEgg })
   try {
     await host.init()
     let cursor = 0

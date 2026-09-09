@@ -21,7 +21,7 @@ export async function replayPlaytest(record) {
   const preset = key === 'physics-v1' ? PHYSICS_V1 : Object.hasOwn(PHYSICS_LAB_PRESETS, key) ? PHYSICS_LAB_PRESETS[key] : null
   if (!preset) throw new Error('Unknown playtest physics preset')
   const scenario = record.config.scenario === 'default' ? null : physicsLabScenario(record.config.scenario)
-  const host = new LocalSimulationHost({ feel, preset, ...(scenario ? { level: scenario.level, initialEgg: scenario.initialEgg } : {}) })
+  const host = new LocalSimulationHost({ feel, preset, ...(scenario ? { fixtureStaticBoxes: scenario.level, initialEgg: scenario.initialEgg } : {}) })
   try {
     const initial = await host.init()
     for (const [key, value] of Object.entries(initial.identity)) {

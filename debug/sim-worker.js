@@ -4,6 +4,7 @@ import { SimulationWorkerRuntime } from '../dist/host/worker-runtime.js'
 import { WORKER_PROTOCOL_VERSION } from '../dist/sim/config.js'
 import { PHYSICS_LAB_PRESETS } from '../dist/sim/physics-presets.js'
 import { physicsLabScenario } from '../dist/sim/physics-lab-fixtures.js'
+import { FOUNDATION_LEVEL, KITCHEN_LEVEL } from '../dist/sim/level.js'
 
 const query = new URL(self.location.href).searchParams
 const presetKey = query.get('physics') ?? 'physics-v1'
@@ -11,7 +12,10 @@ const preset = presetKey === 'physics-v1' ? undefined : PHYSICS_LAB_PRESETS[pres
 if (presetKey !== 'physics-v1' && !preset) throw new Error(`Unknown Physics Lab preset: ${presetKey}`)
 const scenarioKey = query.get('scenario')
 const scenario = scenarioKey ? physicsLabScenario(scenarioKey) : undefined
-const runtimeOptions = { feel: resolveFeelPreset(query.get('feel') ?? '3d-tap'), ...(preset ? { preset } : {}), ...(scenario ? { level: scenario.level, initialEgg: scenario.initialEgg } : {}) }
+const levelKey = query.get('level') ?? FOUNDATION_LEVEL.id
+const level = levelKey === FOUNDATION_LEVEL.id ? FOUNDATION_LEVEL : levelKey === KITCHEN_LEVEL.id ? KITCHEN_LEVEL : undefined
+if (!level) throw new Error(`Unknown authoritative level: ${levelKey}`)
+const runtimeOptions = { feel: resolveFeelPreset(query.get('feel') ?? '3d-tap'), level, ...(preset ? { preset } : {}), ...(scenario ? { fixtureStaticBoxes: scenario.level, initialEgg: scenario.initialEgg } : {}) }
 
 const runtimePromise = RAPIER.init().then(() => new SimulationWorkerRuntime(RAPIER, runtimeOptions))
 
