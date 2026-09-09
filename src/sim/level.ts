@@ -37,9 +37,9 @@ export const KITCHEN_LEVEL_DEFINITION: LevelDefinitionV2 = Object.freeze({
     { id: 'vent', center: [27, 5.7, -4], halfExtents: [1.2, 0.2, 5], friction: 0.9 },
   ]) as readonly StaticBoxDefinition[],
   kinematicBoxes: Object.freeze([{ id: 'moving-cabinet', center: [22.5, 4.15, -4], halfExtents: [1.2, 0.2, 5], friction: 0.95, motion: { axis: [0, 1, 0], distance: 1.25, travelTicks: 120, phaseTick: 0 } }]) as unknown as readonly KinematicBoxDefinition[],
-  continuousForceZones: Object.freeze([{ id: 'coffee-steam', center: [18.5, 5, -4], halfExtents: [9, 4, 5], impulsePerTick: [0.3, 0.2, 0] }]) as unknown as readonly ContinuousForceZoneDefinition[],
-  launchZones: Object.freeze([{ id: 'toaster-launch', center: [18, 3.65, -4], halfExtents: [1, 0.55, 5], impulse: [0.7, 5.8, 0] }]) as unknown as readonly LaunchZoneDefinition[],
-  finishVolumes: Object.freeze([{ id: 'vent-finish', center: [27, 8, -4], halfExtents: [1, 4, 5] }]) as unknown as readonly VolumeDefinition[],
+  continuousForceZones: Object.freeze([{ id: 'coffee-steam', center: [19.5, 5, -4], halfExtents: [1.5, 2.5, 5], impulsePerTick: [0, 0.22, 0] }]) as unknown as readonly ContinuousForceZoneDefinition[],
+  launchZones: Object.freeze([{ id: 'toaster-launch', center: [18, 3.65, -4], halfExtents: [1, 0.55, 5], impulse: [1.6, 5.8, 0] }]) as unknown as readonly LaunchZoneDefinition[],
+  finishVolumes: Object.freeze([{ id: 'vent-finish', center: [27, 6.4, -4], halfExtents: [0.8, 0.9, 5] }]) as unknown as readonly VolumeDefinition[],
 })
 
 function deepFreeze(value: unknown): void {
@@ -53,12 +53,80 @@ function assertVector(value: unknown, name: string, positive = false): asserts v
   if (positive && value.some(item => item <= 0)) throw new Error(`Invalid ${name}`)
 }
 
-/** Strict committed-format validation; unknown fields fail rather than becoming ignored mechanics. */
+function assertRotation(value: unknown): void {
+  if (!Array.isArray(value) || value.length !== 4 || value.some(item => !Number.isFinite(item))) throw new Error('Invalid primitive rotation')
+}
+
+function assertExactKeys(record: Record<string, unknown>, required: readonly string[], optional: readonly string[] = []): void {
+  const expected = [...required, ...optional.filter(key => key in record)].sort()
+  const actual = Object.keys(record).sort()
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) throw new Error('Unsupported primitive fields')
+}
+
+function assertPrimitiveIdentityAndVolume(primitive: Record<string, unknown>, ids: Set<string>): void {
+  if (typeof primitive.id !== 'string' || primitive.id.length === 0 || ids.has(primitive.id)) throw new Error('Invalid or duplicate level primitive id')
+  ids.add(primitive.id)
+  assertVector(primitive.center, 'primitive center')
+  assertVector(primitive.halfExtents, 'primitive half extents', true)
+}
+
+function assertStaticBox(raw: unknown, ids: Set<string>): void {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('Invalid static box')
+  const primitive = raw as Record<string, unknown>
+  assertExactKeys(primitive, ['id', 'center', 'halfExtents', 'friction'], ['rotation'])
+  assertPrimitiveIdentityAndVolume(primitive, ids)
+  if (!Number.isFinite(primitive.friction) || (primitive.friction as number) < 0) throw new Error('Invalid primitive friction')
+  if ('rotation' in primitive) assertRotation(primitive.rotation)
+}
+
+function assertKinematicBox(raw: unknown, ids: Set<string>): void {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('Invalid kinematic box')
+  const primitive = raw as Record<string, unknown>
+  assertExactKeys(primitive, ['id', 'center', 'halfExtents', 'friction', 'motion'], ['rotation'])
+  assertPrimitiveIdentityAndVolume(primitive, ids)
+  if (!Number.isFinite(primitive.friction) || (primitive.friction as number) < 0) throw new Error('Invalid primitive friction')
+  if ('rotation' in primitive) assertRotation(primitive.rotation)
+  if (typeof primitive.motion !== 'object' || primitive.motion === null || Array.isArray(primitive.motion)) throw new Error('Invalid kinematic motion')
+  const motion = primitive.motion as Record<string, unknown>
+  assertExactKeys(motion, ['axis', 'distance', 'travelTicks', 'phaseTick'])
+  assertVector(motion.axis, 'kinematic axis')
+  const axis = motion.axis as Vec3Tuple
+  const nonZero = axis.filter(component => component !== 0)
+  if (nonZero.length !== 1 || Math.abs(nonZero[0] as number) !== 1) throw new Error('Kinematic axis must be a cardinal unit vector')
+  if (!Number.isFinite(motion.distance) || (motion.distance as number) < 0) throw new Error('Invalid kinematic distance')
+  if (!Number.isSafeInteger(motion.travelTicks) || (motion.travelTicks as number) <= 0) throw new Error('Invalid kinematic travel ticks')
+  if (!Number.isSafeInteger(motion.phaseTick) || (motion.phaseTick as number) < 0) throw new Error('Invalid kinematic phase tick')
+}
+
+function assertContinuousForceZone(raw: unknown, ids: Set<string>): void {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('Invalid continuous force zone')
+  const primitive = raw as Record<string, unknown>
+  assertExactKeys(primitive, ['id', 'center', 'halfExtents', 'impulsePerTick'])
+  assertPrimitiveIdentityAndVolume(primitive, ids)
+  assertVector(primitive.impulsePerTick, 'continuous force impulse')
+}
+
+function assertLaunchZone(raw: unknown, ids: Set<string>): void {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('Invalid launch zone')
+  const primitive = raw as Record<string, unknown>
+  assertExactKeys(primitive, ['id', 'center', 'halfExtents', 'impulse'])
+  assertPrimitiveIdentityAndVolume(primitive, ids)
+  assertVector(primitive.impulse, 'launch impulse')
+}
+
+function assertFinishVolume(raw: unknown, ids: Set<string>): void {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('Invalid finish volume')
+  const primitive = raw as Record<string, unknown>
+  assertExactKeys(primitive, ['id', 'center', 'halfExtents'])
+  assertPrimitiveIdentityAndVolume(primitive, ids)
+}
+
+/** Strict committed-format validation; unknown and missing semantics fail closed. */
 export function assertLevelDefinition(value: unknown): asserts value is LevelDefinition {
-  if (typeof value !== 'object' || value === null) throw new Error('Invalid level definition')
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Invalid level definition')
   const level = value as Record<string, unknown>
   if (level.formatVersion !== 1 && level.formatVersion !== 2) throw new Error('Unsupported level format')
-  if (typeof level.id !== 'string' || level.id.length === 0 || !Number.isInteger(level.version) || (level.version as number) <= 0) throw new Error('Invalid level identity')
+  if (typeof level.id !== 'string' || level.id.length === 0 || !Number.isSafeInteger(level.version) || (level.version as number) <= 0) throw new Error('Invalid level identity')
   assertVector(level.origin, 'level origin')
   const expectedKeys = level.formatVersion === 1
     ? ['formatVersion', 'id', 'origin', 'staticBoxes', 'version']
@@ -66,30 +134,17 @@ export function assertLevelDefinition(value: unknown): asserts value is LevelDef
   const actualKeys = Object.keys(level).sort()
   if (actualKeys.length !== expectedKeys.length || actualKeys.some((key, index) => key !== expectedKeys[index])) throw new Error('Unsupported level fields')
   if (!Array.isArray(level.staticBoxes)) throw new Error('Invalid static boxes')
-  const collections = level.formatVersion === 1 ? [level.staticBoxes] : [level.staticBoxes, level.kinematicBoxes, level.continuousForceZones, level.launchZones, level.finishVolumes]
-  if (collections.some(collection => !Array.isArray(collection))) throw new Error('Invalid level collection')
+
   const ids = new Set<string>()
-  for (const collection of collections as unknown[][]) for (const raw of collection) {
-    if (typeof raw !== 'object' || raw === null) throw new Error('Invalid level primitive')
-    const primitive = raw as Record<string, unknown>
-    if (typeof primitive.id !== 'string' || primitive.id.length === 0 || ids.has(primitive.id)) throw new Error('Invalid or duplicate level primitive id')
-    ids.add(primitive.id)
-    assertVector(primitive.center, 'primitive center')
-    assertVector(primitive.halfExtents, 'primitive half extents', true)
-    if ('friction' in primitive && (!Number.isFinite(primitive.friction) || (primitive.friction as number) < 0)) throw new Error('Invalid primitive friction')
-    if ('rotation' in primitive && (!Array.isArray(primitive.rotation) || primitive.rotation.length !== 4 || primitive.rotation.some(item => !Number.isFinite(item)))) throw new Error('Invalid primitive rotation')
-    if ('impulsePerTick' in primitive) assertVector(primitive.impulsePerTick, 'continuous force impulse')
-    if ('impulse' in primitive) assertVector(primitive.impulse, 'launch impulse')
-  }
-  if (level.formatVersion === 2) {
-    assertVector(level.spawn, 'level spawn')
-    for (const raw of level.kinematicBoxes as unknown[]) {
-      const motion = (raw as Record<string, unknown>).motion as Record<string, unknown>
-      if (!motion || !Number.isInteger(motion.travelTicks) || (motion.travelTicks as number) <= 0 || !Number.isInteger(motion.phaseTick) || !Number.isFinite(motion.distance)) throw new Error('Invalid kinematic motion')
-      assertVector(motion.axis, 'kinematic axis')
-      if (motion.axis.every(component => component === 0)) throw new Error('Invalid kinematic axis')
-    }
-  }
+  for (const raw of level.staticBoxes) assertStaticBox(raw, ids)
+  if (level.formatVersion === 1) return
+
+  assertVector(level.spawn, 'level spawn')
+  if (!Array.isArray(level.kinematicBoxes) || !Array.isArray(level.continuousForceZones) || !Array.isArray(level.launchZones) || !Array.isArray(level.finishVolumes)) throw new Error('Invalid level collection')
+  for (const raw of level.kinematicBoxes) assertKinematicBox(raw, ids)
+  for (const raw of level.continuousForceZones) assertContinuousForceZone(raw, ids)
+  for (const raw of level.launchZones) assertLaunchZone(raw, ids)
+  for (const raw of level.finishVolumes) assertFinishVolume(raw, ids)
 }
 
 function descriptor(definition: LevelDefinition, hash: string, generatorVersion: number, seed: number): ResolvedLevel {
