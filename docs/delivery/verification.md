@@ -129,3 +129,22 @@ p95/max **16.80 ms**, render-work p95 **0.60 ms**, 361 frames / 6008.0 ms,
 **0 frames >20 ms**, effective DPR 1.5 on device DPR 2, no browser errors. The
 metrics above now refer to this integrated run. Current cross-platform CI is
 tracked by [PR #13 Checks](https://github.com/timoshinoleg-eng/egg-climb/pull/13/checks).
+
+
+## Playable Kitchen follow-up
+
+The next user-selected scope adds a canonical playable Kitchen view, without
+simulation/host changes. Local validation: **164 unit PASS**, **21 Chromium PASS**
+(16 regression cases + 5 Kitchen cases), both legacy fingerprints unchanged.
+The browser matrix registers 63 cases across the three engines, with no new skips.
+Real-time Kitchen/Garden smokes both measure about 60 FPS; Kitchen used low quality
+and effective DPR 1.0 in this sandbox. These are not physical-phone guarantees.
+
+New code is not validated by the old CI run. GitHub initially returned 401/422;
+access was restored on 2026-09-11 and the user authorized push. The complete local
+source was checked against the downloadable recovery archive before reconciling
+its history with published integration `418e93a`, without overwriting any source
+or force-pushing the recovery snapshot. Build and all 164 unit tests passed again.
+The new head must pass its own GitHub Actions matrix, tracked in PR #13 Checks.
+Full details, keyboard-route methodology and measured quality tiers are in
+[kitchen-escape.md](./kitchen-escape.md).

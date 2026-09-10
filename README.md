@@ -20,6 +20,24 @@ The playable shell uses a Canvas 2D projection of the same worker-owned Rapier
 simulation. The Three.js lab remains at `/debug/index.html`; existing lab/MAX
 query links still redirect there. See [arcade boundaries and compatibility](docs/adr/0005-local-arcade-shell.md).
 
+## Play Kitchen Escape
+
+Choose **Kitchen Escape** in the world tabs, open `/play/kitchen.html`, or use
+`/?mode=kitchen`. This mode runs the canonical Kitchen with default physics/feel,
+real moving cabinet/steam/toaster mechanics and the authoritative Finish latch.
+A / D move along the counter, W / S change depth, Space hops and Escape pauses.
+The view button switches between the full kitchen and following the egg.
+
+The oblique Canvas view preserves 3D coordinates and inputs without a WebGL
+requirement. Background decor is non-colliding, and score/best are still local;
+Garden and Kitchen best scores are independent. Both modes retain safe pause,
+restart, storage fallback, mobile controls and reduced-motion behavior.
+
+See [Kitchen delivery and verification](docs/delivery/kitchen-escape.md) and
+[ADR 0006](docs/adr/0006-playable-kitchen.md). With the server running,
+`npm run test:perf:kitchen` measures a real-time full-room mobile-viewport smoke.
+Its adaptive resolution and real-device limits are recorded, not hidden.
+
 ## Current architecture
 
 The authoritative gameplay simulation is a headless TypeScript module using a pinned deterministic Rapier build and a fixed 60 Hz timestep. Rendering is outside the simulation boundary and may run at any frame rate.

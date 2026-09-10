@@ -1,5 +1,10 @@
 # Engineering & Visual Delivery Report: Egg Climb
 
+> Дополнение: реализован [игровой экран Kitchen Escape](./kitchen-escape.md).
+> Для него локально прошли 164 unit и 21 Chromium-сценарий; данные прежнего CI
+> ниже относятся к предыдущей поставке. GitHub-доступ восстановлен; новый Kitchen
+> публикуется поверх проверенной истории. Актуальная матрица — в PR #13 Checks.
+
 **Дата:** 10 сентября 2026 · **Режим:** local arcade practice + сохранённая Physics/Game Feel Lab.
 
 ## 1. Executive Summary
