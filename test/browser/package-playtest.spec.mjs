@@ -67,6 +67,13 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
     await expect(page.locator('#gameStage')).toHaveAttribute('data-grounded', 'true')
     await page.keyboard.press('Space')
     await expect.poll(async () => Number(await page.locator('#score').textContent())).toBeGreaterThan(0)
+    await page.getByRole('link', { name: /Kitchen Escape/ }).click()
+    await expect(page).toHaveURL(/\/egg-climb\/play\/kitchen\.html/)
+    await expect(page.locator('#gameStage')).toHaveAttribute('data-level', 'kitchen-escape-v1')
+    await page.locator('#startButton').click()
+    await expect(page.locator('#gameStage')).toHaveAttribute('data-grounded', 'true')
+    await page.keyboard.press('Space')
+    await expect.poll(async () => Number(await page.locator('#score').textContent())).toBeGreaterThan(0)
     expect(missing).toEqual([])
     expect(errors).toEqual([])
   } finally {
