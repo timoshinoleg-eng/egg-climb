@@ -6,7 +6,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
-  reporter: process.env.CI ? 'line' : 'list',
+  // Keep exact failure diagnostics in GitHub check annotations as well as logs.
+  // Log archives may be unreachable from restricted review environments.
+  reporter: process.env.CI ? [['line'], ['github']] : 'list',
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
