@@ -123,3 +123,11 @@ kbd { font: 10px/1.6 ui-monospace, monospace; display: inline-block; padding: 0 
 @keyframes record-pop { 0% { opacity: 0; transform: scale(.8) rotate(-4deg); } 65% { transform: scale(1.07) rotate(1deg); } 100% { opacity: 1; transform: none; } }
 body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+.mode-tabs { display: flex; align-items: center; gap: 7px; align-self: start; min-width: 0; }
+.mode-tabs a { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 5px 10px; min-height: 29px; border: 1px solid transparent; border-radius: 7px; font-size: 10px; white-space: nowrap; color: #728067; }
+.mode-tabs a:hover { background: #e6ecd9; color: var(--ink); }
+.mode-tabs a[aria-current="page"] { color: var(--ink); background: #e7ecd9; border-color: #c9d3b8; }
+.mode-tabs a > span { font: 8px ui-monospace, monospace; opacity: .65; }
+.mode-tabs i { font-size: 6px; font-style: normal; letter-spacing: .08em; border-radius: 3px; padding: 1px 4px; background: #e8d4a3; color: #79633c; }
+@media(max-width:620px) { .mode-tabs { gap: 5px; } .mode-tabs a { font-size: 9px; padding-inline: 9px; } }

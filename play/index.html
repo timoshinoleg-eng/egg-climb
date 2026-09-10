@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./layout.css">
 </head>
-<body data-phase="loading">
+<body data-phase="loading" data-mode="garden">
   <header class="topbar">
     <a class="wordmark" href="./index.html" aria-label="Egg Climb home"><img src="./egg.svg" alt="" width="34" height="40"><span>egg<span class="wordmark-light">climb</span><span class="logo-dot">.</span></span></a>
     <div class="tagline">SMALL EGG. BIG ADVENTURE.</div>
@@ -30,6 +30,7 @@
     </aside>
 
     <section class="play-column" aria-label="Cloud Garden arcade">
+      <nav class="mode-tabs" aria-label="Choose a world"><a href="./index.html" aria-current="page"><span>01</span> Cloud Garden</a><a href="./kitchen.html"><span>02</span> Kitchen Escape <i>NEW</i></a></nav>
       <div class="stage" id="gameStage" data-tick="0" data-queue="0" data-quality="high">
         <canvas id="gameCanvas" tabindex="0" aria-label="Cloud Garden. Use A and D or arrow keys to roll, and Space to jump. Pause with Escape."></canvas>
         <div class="stage-top"><div class="world-chip"><span class="world-number">01</span><span>CLOUD GARDEN</span></div><button id="pauseButton" class="stage-pause" aria-label="Pause game" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button></div>

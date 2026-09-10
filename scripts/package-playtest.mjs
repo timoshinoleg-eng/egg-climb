@@ -31,7 +31,7 @@ export async function packagePlaytest() {
   await copyFile(join(ROOT, 'debug', 'max-playtest.js'), join(OUTPUT, 'debug', 'max-playtest.js'))
   await copyFile(join(ROOT, 'debug', 'style.css'), join(OUTPUT, 'debug', 'style.css'))
   await copyFile(join(ROOT, 'debug', 'sim-worker.js'), join(OUTPUT, 'debug', 'sim-worker.js'))
-  for (const name of ['index.html', 'style.css', 'layout.css', 'main.js', 'garden-view.js', 'sim-worker.js', 'egg.svg']) {
+  for (const name of ['index.html', 'kitchen.html', 'style.css', 'layout.css', 'kitchen.css', 'main.js', 'modes.js', 'egg-art.js', 'garden-view.js', 'kitchen-view.js', 'kitchen-art.js', 'sim-worker.js', 'kitchen-worker.js', 'egg.svg']) {
     await copyFile(join(ROOT, 'play', name), join(OUTPUT, 'play', name))
   }
   for (const module of ['sim', 'host', 'presentation', 'render', 'game']) {
@@ -51,14 +51,16 @@ export async function packagePlaytest() {
   const workerPath = join(OUTPUT, 'debug', 'sim-worker.js')
   const worker = await readFile(workerPath, 'utf8')
   await writeFile(workerPath, worker.replace('/node_modules/@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs', '../vendor/rapier/rapier.mjs'))
-  const arcadeWorkerPath = join(OUTPUT, 'play', 'sim-worker.js')
-  const arcadeWorker = await readFile(arcadeWorkerPath, 'utf8')
-  await writeFile(arcadeWorkerPath, arcadeWorker.replace('/node_modules/@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs', '../vendor/rapier/rapier.mjs'))
+  for (const name of ['sim-worker.js', 'kitchen-worker.js']) {
+    const workerPath = join(OUTPUT, 'play', name)
+    const worker = await readFile(workerPath, 'utf8')
+    await writeFile(workerPath, worker.replace('/node_modules/@dimforge/rapier3d-deterministic-compat/dist/rapier.mjs', '../vendor/rapier/rapier.mjs'))
+  }
   const rapierPath = join(OUTPUT, 'dist', 'sim', 'rapier.js')
   const rapier = await readFile(rapierPath, 'utf8')
   await writeFile(rapierPath, rapier.replace("'@dimforge/rapier3d-deterministic-compat'", "'../../vendor/rapier/rapier.mjs'"))
 
-  await writeFile(join(OUTPUT, 'index.html'), `<!doctype html><meta charset="utf-8"><title>Egg Climb</title><script>const lab=['max','feel','physics','scenario','visual','order'].some(key=>new URLSearchParams(location.search).has(key));location.replace((lab?'./debug/index.html':'./play/index.html')+location.search+location.hash)</script><noscript>Enable JavaScript to play Egg Climb.</noscript>\n`)
+  await writeFile(join(OUTPUT, 'index.html'), `<!doctype html><meta charset="utf-8"><title>Egg Climb</title><script>const lab=['max','feel','physics','scenario','visual','order'].some(key=>new URLSearchParams(location.search).has(key));const kitchen=new URLSearchParams(location.search).get('mode')==='kitchen';location.replace((lab?'./debug/index.html':kitchen?'./play/kitchen.html':'./play/index.html')+location.search+location.hash)</script><noscript>Enable JavaScript to play Egg Climb.</noscript>\n`)
   return OUTPUT
 }
 

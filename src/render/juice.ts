@@ -218,7 +218,7 @@ export class Juice {
       if (event.kind === 'land' || event.kind === 'hard-land') {
         this.squashSpring.kick(event.impact)
         this.cameraShake.add(0.15 + event.impact * 0.5)
-      } else if (event.kind === 'jump') {
+      } else if (event.kind === 'jump' || event.kind === 'launch') {
         this.squashSpring.stretchKick()
         this.cameraShake.add(0.1)
       } else if (event.kind === 'fail') {

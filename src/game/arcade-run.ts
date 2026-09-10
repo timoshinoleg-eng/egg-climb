@@ -7,11 +7,29 @@ import type { ArcadeScore } from './arcade-score.js'
 import { ARCADE_PHYSICS } from './arcade-level.js'
 
 export type ArcadePhase = 'loading' | 'ready' | 'playing' | 'paused' | 'over' | 'resetting' | 'error' | 'disposed'
-export type EndReason = 'fall' | 'summit' | 'timeout' | null
+export type EndReason = 'fall' | 'summit' | 'finish' | 'timeout' | null
 export interface ArcadeCallbacks {
   readonly onFrame?: (frame: SimulationFrame, score: ArcadeScore, previousScore: ArcadeScore) => void
   readonly onPhase?: (phase: ArcadePhase) => void
 }
+
+/** Local session policy; never changes the host's authoritative simulation. */
+export interface RoundRules {
+  readonly localCenterOfMassY: number
+  readonly initialLandingHeightMm: number
+  readonly maxTicks: number
+  readonly isOutside: (snapshot: SimulationSnapshot, peakY: number) => boolean
+  readonly completion: (snapshot: SimulationSnapshot) => 'summit' | 'finish' | null
+}
+
+const GARDEN_RULES: RoundRules = Object.freeze({
+  localCenterOfMassY: ARCADE_PHYSICS.egg.centerOfMassY,
+  initialLandingHeightMm: 0,
+  maxTicks: 60 * 180,
+  isOutside: isOutsideArcadeBounds,
+  completion: (snapshot: SimulationSnapshot) => snapshot.physics.grounded &&
+    (snapshot.physics.supportContactWorld?.y ?? 0) >= 14.85 ? 'summit' : null,
+})
 
 /**
  * Local-practice lifecycle above the unmodified authoritative SimulationHost.
@@ -33,7 +51,11 @@ export class ArcadeRun {
   private reasonValue: EndReason = null
   private errorValue: Error | null = null
 
-  constructor(private readonly host: SimulationHost, private readonly callbacks: ArcadeCallbacks = {}) {}
+  constructor(
+    private readonly host: SimulationHost,
+    private readonly callbacks: ArcadeCallbacks = {},
+    private readonly rules: RoundRules = GARDEN_RULES,
+  ) {}
 
   get phase(): ArcadePhase { return this.phaseValue }
   get previous(): SimulationSnapshot | undefined { return this.previousValue }
@@ -55,8 +77,8 @@ export class ArcadeRun {
     this.previousValue = snapshot
     this.currentValue = snapshot
     this.peakY = snapshot.position.y
-    this.startComY = worldCenterOfMassYFromSnapshot(snapshot, ARCADE_PHYSICS.egg.centerOfMassY)
-    this.scoreValue = EMPTY_ARCADE_SCORE
+    this.startComY = worldCenterOfMassYFromSnapshot(snapshot, this.rules.localCenterOfMassY)
+    this.scoreValue = { ...EMPTY_ARCADE_SCORE, highestLandingMm: this.rules.initialLandingHeightMm }
     this.reasonValue = null
     this.errorValue = null
     this.scheduler.reset()
@@ -109,19 +131,20 @@ export class ArcadeRun {
       this.previousValue = frame.previous
       this.currentValue = frame.current
       this.peakY = Math.max(this.peakY, frame.current.position.y)
-      if (isOutsideArcadeBounds(frame.current, this.peakY)) {
+      if (this.rules.isOutside(frame.current, this.peakY)) {
         this.callbacks.onFrame?.(frame, this.scoreValue, this.scoreValue)
         this.end('fall')
         return
       }
       const oldScore = this.scoreValue
       this.scoreValue = updateArcadeScore(
-        oldScore, frame.current, this.startComY, ARCADE_PHYSICS.egg.centerOfMassY,
+        oldScore, frame.current, this.startComY, this.rules.localCenterOfMassY,
         frame.events.some(event => event.kind === 'land' || event.kind === 'hard-land'),
       )
       this.callbacks.onFrame?.(frame, this.scoreValue, oldScore)
-      if (frame.current.physics.grounded && (frame.current.physics.supportContactWorld?.y ?? 0) >= 14.85) this.end('summit')
-      else if (frame.current.tick >= 60 * 180) this.end('timeout')
+      const completion = this.rules.completion(frame.current)
+      if (completion) this.end(completion)
+      else if (frame.current.tick >= this.rules.maxTicks) this.end('timeout')
     }).catch(error => {
       if (epoch === this.epoch) this.fail(error)
     }).finally(() => {

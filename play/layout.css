@@ -1,7 +1,7 @@
 .topbar { height: 82px; max-width: 1440px; margin: 0 auto; padding: 0 46px; display: flex; align-items: center; justify-content: space-between; }
 .arcade-layout { width: min(1400px, 100%); height: calc(100dvh - 126px); max-height: 950px; min-height: 400px; margin: 0 auto; padding: 30px 46px 8px; display: grid; grid-template-columns: 185px minmax(340px, 1fr) 200px; gap: 34px; }
 .scoreboard, .field-notes { display: flex; flex-direction: column; min-height: 0; }
-.play-column { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) 62px; gap: 8px; }
+.play-column { min-height: 0; display: grid; grid-template-rows: 34px minmax(0, 1fr) 62px; gap: 8px; }
 .stage { position: relative; min-height: 0; }
 .page-footer { max-width: 1400px; height: 44px; margin: 0 auto; padding: 0 46px; display: flex; align-items: center; justify-content: space-between; }
 @media (min-width: 1600px) { .arcade-layout { padding-top: 42px; gap: 45px; grid-template-columns: 205px minmax(340px, 1fr) 190px; } }
@@ -31,7 +31,7 @@
   .best-row > span:first-child { font-size: 0; }
   .best-row > span:first-child::after { content: 'BEST'; font-size: 7px; }
   .best-row > span:last-child { font-size: 9px; }
-  .play-column { flex: 1; grid-template-rows: minmax(0,1fr) 76px; gap: 0; width: 100%; }
+  .play-column { flex: 1; grid-template-rows: 34px minmax(0,1fr) 76px; gap: 0; width: 100%; }
   .stage { border-radius: 17px; box-shadow: 0 4px 0 #dfe4d5; }
   .stage-top, .stage-bottom { left: 16px; right: 16px; }
   .stage-top { top: 13px; }
@@ -58,4 +58,4 @@
   .game-dialog h2 { font-size: 29px; }
 }
 @media (max-height: 710px) and (max-width: 620px) { .start-card { padding: 12px 17px; } .start-card h1 { font-size: 22px; margin: 3px 0; } .start-card p { display: none; } .start-card .primary-button { min-height: 42px; margin-top: 9px; } .scoreboard { height: 68px; } }
-@media (max-height: 620px) and (min-width: 621px) { .arcade-layout { height: calc(100dvh - 90px); min-height: 0; grid-template-columns: 155px minmax(0,1fr); padding: 12px 22px 0; } .topbar { height: 58px; } .page-footer { height: 32px; } .field-notes, .route-card, .local-note { display: none; } .start-card { width: 320px; padding: 12px 19px; bottom: 34px; } .start-card p, .onboarding-keys { display: none; } .start-card h1 { font-size: 23px; margin-bottom: 10px; } .play-column { grid-template-rows: minmax(0,1fr) 48px; } .control-button, .jump-button { height: 40px; } }
+@media (max-height: 620px) and (min-width: 621px) { .arcade-layout { height: calc(100dvh - 90px); min-height: 0; grid-template-columns: 155px minmax(0,1fr); padding: 12px 22px 0; } .topbar { height: 58px; } .page-footer { height: 32px; } .field-notes, .route-card, .local-note { display: none; } .start-card { width: 320px; padding: 12px 19px; bottom: 34px; } .start-card p, .onboarding-keys { display: none; } .start-card h1 { font-size: 23px; margin-bottom: 10px; } .play-column { grid-template-rows: 30px minmax(0,1fr) 48px; } .control-button, .jump-button { height: 40px; } }

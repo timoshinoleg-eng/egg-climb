@@ -1,11 +1,11 @@
 import { WorkerSimulationHost } from '../dist/host/worker-client.js'
-import { ArcadeRun } from '../dist/game/arcade-run.js'
-import { ARCADE_PHYSICS, ARCADE_FEEL } from '../dist/game/arcade-level.js'
 import { InputState } from '../dist/game/input-state.js'
 import { bindGameInput, isInteractiveTarget } from '../dist/game/browser-input.js'
-import { SafeStorage, BEST_SCORE_KEY, isBestScore } from '../dist/game/storage.js'
+import { SafeStorage, isBestScore } from '../dist/game/storage.js'
 import { FrameMeter } from '../dist/render/arcade-effects.js'
-import { GardenView } from './garden-view.js'
+import { gameMode } from './modes.js'
+
+const mode = gameMode(document.body.dataset.mode)
 
 const $ = id => document.getElementById(id)
 const canvas=$('gameCanvas'),stage=$('gameStage')
@@ -15,7 +15,7 @@ const storage=new SafeStorage(),input=new InputState(),meter=new FrameMeter()
 const lifetime=new AbortController(),signal=lifetime.signal
 const motionQuery=window.matchMedia('(prefers-reduced-motion: reduce)')
 let reducedMotion=motionQuery.matches||storage.read('egg-climb-reduced-motion',false,value=>typeof value==='boolean')
-let best=storage.read(BEST_SCORE_KEY,0,isBestScore)
+let best=storage.read(mode.bestKey,0,isBestScore)
 let game=null,host=null,view=null,disposeInput=()=>{}
 let disposed=false,rafId=0,lastTime=0,hudTime=0,perfTime=0,settleTime=0,slowWindows=0,fastWindows=0
 let helpActive=false,resumeAfterHelp=false
@@ -33,9 +33,30 @@ function updateHud(){
   if(score.combo>0)text(ui.combo.lastElementChild,`×${score.combo}`)
   stage.dataset.tick=String(game?.current?.tick??0);stage.dataset.queue=String(game?.pendingCount??0)
   stage.dataset.grounded=String(game?.current?.physics.grounded??false);stage.dataset.x=String(game?.current?.position.x??0)
+  stage.dataset.z=String(game?.current?.position.z??0);stage.dataset.mode=mode.id
+  stage.dataset.level=game?.current?.identity.levelId??mode.level.id
+  stage.dataset.levelHash=game?.current?.identity.levelHash??mode.level.hash
   stage.dataset.particles=String(view?.particles.activeCount??0);stage.dataset.quality=view?.quality??'high';stage.dataset.dpr=String(view?.dpr??1)
   for(const mark of document.querySelectorAll('[data-milestone]'))mark.classList.toggle('reached',score.heightMm>=Number(mark.dataset.milestone)*1000)
   for(const button of document.querySelectorAll('[data-game-action]'))button.classList.toggle('is-held',input.held(button.dataset.gameAction))
+  if(mode.id==='kitchen'){
+    const x=game?.current?.position.x??10,done=game?.reason==='finish',visual=view?.telemetry
+    for(const mark of document.querySelectorAll('[data-route-x]'))mark.classList.toggle('reached',mark.dataset.routeGoal==='true'?done:done||x>=Number(mark.dataset.routeX))
+    const progress=Math.max(0,Math.min(99,(x-10)/17*100))
+    $('routeProgress').value=done?100:progress;text($('routePercent'),`${done?100:Math.round(progress)}%`)
+    text($('runTime'),`${((game?.current?.tick??0)/60).toFixed(1)}s`)
+    if(visual){
+      stage.dataset.cabinetY=visual.cabinetY.toFixed(4);stage.dataset.steamActive=String(visual.steamActive)
+      stage.dataset.lastLaunchTick=String(visual.lastLaunchTick);stage.dataset.completionTick=String(game?.current?.gameplay.completionTick??'')
+      text($('steamStatus'),visual.steamActive?'LIFTING':'READY')
+      $('steamReadout').classList.toggle('active',visual.steamActive)
+      const launched=visual.lastLaunchTick>=0&&(game?.current?.tick??0)-visual.lastLaunchTick<50
+      text($('toasterStatus'),launched?'POP!':'READY');$('toasterReadout').classList.toggle('active',launched)
+      text($('cabinetStatus'),`${visual.cabinetY.toFixed(1)} m`)
+      $('overviewButton').setAttribute('aria-pressed',String(visual.overview))
+      $('overviewButton').setAttribute('aria-label',visual.overview?'Follow the egg':'View the kitchen')
+    }
+  }
 }
 function setMotion(value){
   reducedMotion=value;document.body.classList.toggle('reduced-motion',value)
@@ -49,30 +70,31 @@ function showError(message){
 function onPhase(phase){
   if(disposed)return
   document.body.dataset.phase=phase
+  view?.onPhase?.(phase)
   ui.pause.disabled=phase!=='playing';ui.restart.disabled=phase==='loading'||phase==='resetting'||phase==='error'
   ui.onboarding.hidden=phase!=='ready'&&phase!=='loading'
   if(phase==='ready'){
     input.reset();view?.reset(game?.current);meter.reset();closeDialogs();helpActive=false
-    ui.start.disabled=false;text(ui.startLabel,"Let's climb");text(ui.status,'READY WHEN YOU ARE');settleTime=0;startLoop()
+    ui.start.disabled=false;text(ui.startLabel,mode.startLabel);text(ui.status,'READY WHEN YOU ARE');settleTime=0;startLoop()
   }else if(phase==='playing'){
-    closeDialogs();text(ui.status,'ONE LITTLE LEAP AT A TIME');meter.reset();hudTime=0;perfTime=0;lastTime=performance.now();focusCanvas();startLoop()
+    closeDialogs();text(ui.status,mode.running);meter.reset();hudTime=0;perfTime=0;lastTime=performance.now();focusCanvas();startLoop()
   }else if(phase==='paused'){
     input.cancel();stopLoop();view?.render(0,game?.current,game?.current,1,'paused');text(ui.status,'TAKE A BREATHER')
     if(!helpActive&&!pauseDialog.open)pauseDialog.showModal()
   }else if(phase==='over'){
-    input.reset();view?.end(game.reason);settleTime=1.25;text(ui.status,game.reason==='summit'?'GARDEN COMPLETE':'EVERY FALL IS A FRESH START')
+    input.reset();view?.end(game.reason);settleTime=1.25;text(ui.status,game.reason===mode.winReason?mode.winLabel:'EVERY FALL IS A FRESH START')
     const newBest=game.score.points>best
-    if(newBest){best=game.score.points;$('storageNote').hidden=storage.write(BEST_SCORE_KEY,best);view?.record()}
+    if(newBest){best=game.score.points;$('storageNote').hidden=storage.write(mode.bestKey,best);view?.record()}
     $('recordBadge').hidden=!newBest
-    text($('endLabel'),game.reason==='summit'?'GARDEN COMPLETE':game.reason==='timeout'?'TIME TO REST':'GAME OVER')
-    text($('resultTitle'),game.reason==='summit'?'Look how far you grew.':'A cracking good run.')
-    text($('resultCopy'),game.reason==='summit'?'A little courage goes a long way.':game.reason==='timeout'?'Three minutes of little leaps. Ready for another?':'Every fall is a fresh start.')
+    text($('endLabel'),game.reason===mode.winReason?mode.winLabel:game.reason==='timeout'?'TIME TO REST':'GAME OVER')
+    text($('resultTitle'),game.reason===mode.winReason?mode.winTitle:'A cracking good run.')
+    text($('resultCopy'),game.reason===mode.winReason?mode.winCopy:game.reason==='timeout'?'Three minutes of little leaps. Ready for another?':'Every fall is a fresh start.')
     text($('resultHeight'),`${(game.score.heightMm/1000).toFixed(1)} m`);text($('resultScore'),String(game.score.points));text($('resultBest'),String(best))
     closeDialogs();resultDialog.showModal();$('playAgainButton').focus({preventScroll:true});startLoop()
   }else if(phase==='resetting'){
-    stopLoop();input.reset();view?.reset();closeDialogs();text(ui.status,'BACK TO THE NEST');ui.start.disabled=true
+    stopLoop();input.reset();view?.reset();closeDialogs();text(ui.status,mode.reset);ui.start.disabled=true
   }else if(phase==='error'){
-    showError('The simulation stopped responding. Your device best is safe. Reload to start a fresh climb.')
+    showError('The simulation stopped responding. Reload to start a fresh climb.')
   }
   updateHud()
 }
@@ -88,7 +110,7 @@ function frame(now){
   if(disposed||document.hidden||!view)return
   const workStart=performance.now(),dt=lastTime?(now-lastTime)/1000:0
   lastTime=now
-  game?.tick(dt,()=>input.sample())
+  game?.tick(dt,()=>input.sample(mode.planar))
   view.render(dt,game?.previous,game?.current,game?.alpha??1,game?.phase??'loading')
   hudTime+=Math.min(dt,0.1);perfTime+=dt
   if(hudTime>=0.1){hudTime=0;updateHud()}
@@ -109,6 +131,7 @@ function frame(now){
   rafId=requestAnimationFrame(frame)
 }
 
+if($('overviewButton'))listen($('overviewButton'),'click',()=>{view?.setOverview(!view.overview);updateHud();focusCanvas();if(game?.phase==='paused')view.render(0,game.current,game.current,1,'paused')})
 listen(ui.start,'click',()=>game?.start())
 listen(ui.pause,'click',()=>game?.pause())
 listen(ui.restart,'click',()=>void restart())
@@ -158,13 +181,15 @@ window.addEventListener('pagehide',dispose,{once:true})
 window.addEventListener('pageshow',event=>{if(event.persisted&&disposed)location.reload()})
 
 try{
-  view=new GardenView(canvas);setMotion(reducedMotion);resize()
+  const View=await mode.loadView()
+  if(disposed)throw new Error('Client closed during loading')
+  view=new View(canvas);setMotion(reducedMotion);resize()
   resizeObserver=new ResizeObserver(resize);resizeObserver.observe(stage)
-  host=new WorkerSimulationHost(new URL('./sim-worker.js',import.meta.url),ARCADE_PHYSICS,ARCADE_FEEL)
-  game=new ArcadeRun(host,{onPhase,onFrame:(frame,score,oldScore)=>view.accept(frame,score,oldScore)})
+  host=new WorkerSimulationHost(new URL(mode.worker,import.meta.url),mode.preset,mode.feel,mode.level)
+  game=new mode.Run(host,{onPhase,onFrame:(frame,score,oldScore)=>view.accept(frame,score,oldScore)})
   disposeInput=bindGameInput(input,{active:()=>game?.phase==='playing',onCancel:()=>game?.pause()})
   startLoop();await game.init()
   if(!disposed&&game.phase==='ready')ui.start.focus({preventScroll:true})
 }catch{
-  host?.terminate();showError('This browser could not start the garden. Please reload or try an updated browser.')
+  host?.terminate();if(!disposed)showError('This browser could not start the game. Please reload or try an updated browser.')
 }
