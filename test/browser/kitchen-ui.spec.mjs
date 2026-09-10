@@ -126,15 +126,40 @@ test('world navigation keeps separate best scores and tears down the previous wo
     localStorage.setItem('egg-climb-kitchen-best-v1','230')
   })
   await page.goto('/')
+  await expect(page.locator('body')).toHaveAttribute('data-phase','ready')
   await expect(page.locator('#bestScore')).toHaveText('00450')
+  await expect.poll(()=>page.workers().length).toBe(1)
+  let gardenClosed=false
+  page.workers()[0].once('close',()=>{gardenClosed=true})
   await page.getByRole('link',{name:/Kitchen Escape/}).click()
   await expect(page.locator('body')).toHaveAttribute('data-phase','ready')
   await expect(page.locator('#bestScore')).toHaveText('00230')
-  expect(page.workers()).toHaveLength(1)
-  await page.getByRole('link',{name:/Cloud Garden/}).click()
-  await expect(page.locator('body')).toHaveAttribute('data-mode','garden')
-  await expect(page.locator('#bestScore')).toHaveText('00450')
-  expect(page.workers()).toHaveLength(1)
+  await expect.poll(()=>gardenClosed).toBe(true)
+  await expect.poll(()=>page.workers().length).toBe(1)
+  expect(page.workers()[0].url()).toContain('/play/kitchen-worker.js')
+  let kitchenClosed=false
+  page.workers()[0].once('close',()=>{kitchenClosed=true})
+
+  // A page's mode and best score are painted before its Worker handshake.
+  // Hold the new script to reproduce that interval without arbitrary sleeps.
+  let releaseWorker
+  const workerGate=new Promise(resolve=>{releaseWorker=resolve})
+  await page.route('**/play/sim-worker.js*',async route=>{await workerGate;await route.continue()})
+  const navigation=page.getByRole('link',{name:/Cloud Garden/}).click()
+  try{
+    await expect(page.locator('body')).toHaveAttribute('data-mode','garden')
+    await expect(page.locator('#bestScore')).toHaveText('00450')
+    await expect(page.locator('body')).toHaveAttribute('data-phase','loading')
+    await expect(page.locator('#startButton')).toBeDisabled()
+  }finally{
+    releaseWorker()
+    await navigation
+  }
+  await expect(page.locator('body')).toHaveAttribute('data-phase','ready')
+  await expect(page.locator('#startButton')).toBeEnabled()
+  await expect.poll(()=>kitchenClosed).toBe(true)
+  await expect.poll(()=>page.workers().length).toBe(1)
+  expect(page.workers()[0].url()).toContain('/play/sim-worker.js')
 })
 
 test.describe('Kitchen mobile',()=>{

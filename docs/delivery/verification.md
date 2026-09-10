@@ -148,3 +148,17 @@ or force-pushing the recovery snapshot. Build and all 164 unit tests passed agai
 The new head must pass its own GitHub Actions matrix, tracked in PR #13 Checks.
 Full details, keyboard-route methodology and measured quality tiers are in
 [kitchen-escape.md](./kitchen-escape.md).
+
+### Cross-browser navigation regression found during restored delivery
+
+The first complete Kitchen UI CI found one Firefox test race: returning to Garden
+painted the static mode/best score before its Worker handshake completed, while the
+test immediately expected one Worker. This was not a simulation or replay mismatch.
+GitHub reporter annotations were added alongside the line reporter so the exact
+failure remains readable even when the log archive CDN is unavailable.
+
+The navigation regression now awaits `ready`, the old Worker's close event and a
+single new Worker with the correct URL. A gate on the returning Garden script
+explicitly checks the loading/disabled-start interval before allowing initialization.
+No assertion or browser project was removed. The strengthened case passed three
+consecutive Chromium runs locally; the full current matrix is tracked in PR #13.
