@@ -7,7 +7,7 @@ test('MAX mobile shell keeps worker gameplay usable and exports replay without d
   await page.route('https://st.max.ru/js/max-web-app.js', route => route.fulfill({ contentType: 'text/javascript', body: 'window.WebApp={platform:"android"}' }))
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
-  await page.goto('/debug/index.html?max=1&feel=2d-hold-assist&scenario=jump-base')
+  await page.goto('/debug/index.html?max=1&lab=1&feel=2d-hold-assist&scenario=jump-base')
   await expect(page.locator('#maxToolbar')).toHaveAttribute('data-platform', 'android')
   await expect(page.locator('#labPanel')).toBeHidden()
   await expect(page.locator('#hud')).toBeHidden()
