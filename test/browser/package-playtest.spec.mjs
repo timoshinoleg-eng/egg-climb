@@ -10,13 +10,8 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
   test.skip(browserName !== 'chromium', 'Static MAX package smoke runs in Chromium')
   const packageRoot = await packagePlaytest()
   const mime = {
-    '.html': 'text/html; charset=utf-8',
-    '.js': 'text/javascript; charset=utf-8',
-    '.mjs': 'text/javascript; charset=utf-8',
-    '.css': 'text/css; charset=utf-8',
-    '.wasm': 'application/wasm',
-    '.json': 'application/json; charset=utf-8',
-    '.svg': 'image/svg+xml',
+    '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8', '.wasm': 'application/wasm', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml',
   }
   const server = createServer(async (request, response) => {
     try {
@@ -30,15 +25,11 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
       if (!fileStat.isFile()) { response.writeHead(404); response.end('not found'); return }
       response.writeHead(200, { 'Content-Type': mime[extname(filePath)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' })
       createReadStream(filePath).pipe(response)
-    } catch {
-      response.writeHead(404); response.end('not found')
-    }
+    } catch { response.writeHead(404); response.end('not found') }
   })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
-  const address = server.address()
-  const port = typeof address === 'object' && address ? address.port : 0
-  const missing = []
-  const errors = []
+  const address = server.address(); const port = typeof address === 'object' && address ? address.port : 0
+  const missing = [], errors = []
   page.on('pageerror', error => errors.push(error.message))
   page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`) })
   page.on('response', response => { if (response.url().includes(`/egg-climb/`) && response.status() >= 400) missing.push(`${response.status()} ${response.url()}`) })
@@ -48,35 +39,24 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
     await expect(page).toHaveURL(/\/egg-climb\/debug\/index\.html\?max=1&feel=2d-hold-assist&scenario=jump-base/)
     await expect(page.locator('#maxToolbar')).toHaveAttribute('data-platform', 'android')
     try { await expect(page.locator('#status')).toContainText('running') } catch (error) { throw new Error(`${error.message}\n${errors.join('\n')}`) }
-    const jump = page.getByRole('button', { name: 'JUMP', exact: true })
-    const box = await jump.boundingBox()
-    expect(box).toBeTruthy()
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.down()
-    await page.waitForTimeout(200)
-    await page.mouse.up()
+    const jump = page.getByRole('button', { name: 'JUMP', exact: true }); const box = await jump.boundingBox(); expect(box).toBeTruthy()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.waitForTimeout(200); await page.mouse.up()
     await page.getByRole('button', { name: 'Экспорт', exact: true }).click()
     const record = JSON.parse(await page.getByLabel('JSON записи теста').inputValue())
     expect((await replayPlaytest(record)).matched).toBe(true)
     expect(record.config.feel).toBe('2d-hold-assist')
-    expect(record.samples.some(input => input.jumpDown)).toBe(true)
-    expect(record.samples.some(input => input.jumpUp)).toBe(true)
+    expect(record.samples.some(input => input.jumpDown)).toBe(true); expect(record.samples.some(input => input.jumpUp)).toBe(true)
+
     await page.goto(`http://127.0.0.1:${port}/egg-climb/`)
-    await expect(page).toHaveURL(/\/egg-climb\/play\/index\.html/)
-    await page.getByRole('button', { name: "Let's climb" }).click()
-    await expect(page.locator('#gameStage')).toHaveAttribute('data-grounded', 'true')
-    await page.keyboard.press('Space')
-    await expect.poll(async () => Number(await page.locator('#score').textContent())).toBeGreaterThan(0)
-    await page.getByRole('link', { name: /Kitchen Escape/ }).click()
     await expect(page).toHaveURL(/\/egg-climb\/play\/kitchen\.html/)
     await expect(page.locator('#gameStage')).toHaveAttribute('data-level', 'kitchen-escape-v1')
-    await page.locator('#startButton').click()
-    await expect(page.locator('#gameStage')).toHaveAttribute('data-grounded', 'true')
-    await page.keyboard.press('Space')
-    await expect.poll(async () => Number(await page.locator('#score').textContent())).toBeGreaterThan(0)
-    expect(missing).toEqual([])
-    expect(errors).toEqual([])
-  } finally {
-    await new Promise(resolve => server.close(resolve))
-  }
+    await page.locator('#startButton').click(); await expect(page.locator('#gameStage')).toHaveAttribute('data-grounded', 'true')
+    await page.keyboard.press('Space'); await expect.poll(async () => Number(await page.locator('#score').textContent())).toBeGreaterThan(0)
+
+    await page.goto(`http://127.0.0.1:${port}/egg-climb/?mode=garden`)
+    await expect(page).toHaveURL(/\/egg-climb\/play\/index\.html\?mode=garden/)
+    await page.getByRole('button', { name: "Let's climb" }).click(); await expect(page.locator('#gameStage')).toHaveAttribute('data-grounded', 'true')
+    await page.keyboard.press('Space'); await expect.poll(async () => Number(await page.locator('#score').textContent())).toBeGreaterThan(0)
+    expect(missing).toEqual([]); expect(errors).toEqual([])
+  } finally { await new Promise(resolve => server.close(resolve)) }
 })
