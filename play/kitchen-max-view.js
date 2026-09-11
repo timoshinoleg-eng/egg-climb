@@ -1,4 +1,5 @@
 import { KitchenReadabilityView } from './kitchen-readability-view.js'
+import { KITCHEN_LEVEL_DEFINITION as LEVEL } from '../dist/sim/level.js'
 
 const FACE_COLORS = Object.freeze({
   table: { top: '#dfbd82', front: '#ba8d59', side: '#ac7b4c' },
@@ -14,25 +15,69 @@ const FACE_COLORS = Object.freeze({
 /**
  * MAX/WebView-specific presentation profile.
  *
- * The authoritative Kitchen simulation remains unchanged. This renderer only
- * reduces Canvas 2D work: DPR is locked to LOW, static faces use flat fills
- * instead of affine texture draws, and the decorative room is simplified.
+ * The authoritative Kitchen simulation still runs at the normal fixed tick in
+ * the Worker. Only presentation is degraded: LOW/DPR=1, every second render
+ * callback is skipped, decorative animation is disabled, and surfaces use flat
+ * fills. This halves expensive Canvas work even when the WebView is already slow.
  */
 export class KitchenMaxView extends KitchenReadabilityView {
   constructor(canvas) {
     super(canvas)
+    this.maxRenderParity = 1
+    this.maxRenderDebt = 0
     super.setQuality('low')
+    super.setReducedMotion(true)
+    this.canvas.dataset.maxProfile = 'performance-v2'
+    this.canvas.dataset.renderStride = '2'
+
+    // MAX never uses the textured face path, so release those backing canvases
+    // after construction instead of retaining them for the whole run.
+    for (const texture of this.materials.values()) { texture.width = 1; texture.height = 1 }
+    this.materials.clear()
+    this.floor.canvas.width = 1
+    this.wall.canvas.width = 1
   }
 
   setQuality() {
-    // Keep MAX on the stable DPR=1 path. The generic adaptive-quality loop may
-    // request upgrades after short fast windows; those upgrades are intentionally
-    // ignored in this constrained WebView profile.
     super.setQuality('low')
   }
 
+  setReducedMotion() {
+    // Presentation motion is force-disabled in MAX. Physics and controls are not.
+    super.setReducedMotion(true)
+  }
+
+  onPhase(phase) {
+    super.onPhase(phase)
+    if (phase === 'playing') {
+      this.maxRenderParity = 1
+      this.maxRenderDebt = 0
+    }
+  }
+
+  accept(frame) {
+    // Preserve authoritative presentation events needed for launch/finish cues,
+    // but do not spawn score labels or particles in the constrained profile.
+    for (const event of frame.events) if (this.pendingEvents.length < 64) this.pendingEvents.push(event)
+  }
+
+  render(dt, previous, current, alpha, phase) {
+    if (this.disposed) return
+    const step = Math.min(.1, Math.max(0, Number.isFinite(dt) ? dt : 0))
+    if (phase === 'playing') {
+      this.maxRenderDebt = Math.min(.1, this.maxRenderDebt + step)
+      this.maxRenderParity = (this.maxRenderParity + 1) & 1
+      if (this.maxRenderParity) return
+      const elapsed = this.maxRenderDebt
+      this.maxRenderDebt = 0
+      super.render(elapsed, previous, current, alpha, phase)
+      return
+    }
+    this.maxRenderDebt = 0
+    super.render(step, previous, current, alpha, phase)
+  }
+
   drawFace(face) {
-    if (this.quality !== 'low') return super.drawFace(face)
     const c = this.ctx, p = face.points
     const palette = FACE_COLORS[face.box.definition.id] ?? { top: '#d8d8c8', front: '#aeb8aa', side: '#909d91' }
     c.fillStyle = palette[face.material] ?? palette.front
@@ -42,12 +87,11 @@ export class KitchenMaxView extends KitchenReadabilityView {
   }
 
   drawRoom() {
-    if (this.quality !== 'low') return super.drawRoom()
     const c = this.ctx
     c.fillStyle = this.sky; c.fillRect(0, 0, this.width, this.height)
 
-    // Two flat planes retain the cutaway-kitchen read without per-frame pattern
-    // sampling or dozens of decorative draw calls.
+    // Minimal cutaway planes only. The canonical colliders themselves provide
+    // the route geometry, so decorative cupboards/window/rails are unnecessary.
     c.fillStyle = '#e6dfc9'
     c.beginPath()
     c.moveTo(this.px(4, -12), this.py(-1.5, -12))
@@ -63,18 +107,19 @@ export class KitchenMaxView extends KitchenReadabilityView {
     c.lineTo(this.px(32, -10), this.py(12, -10))
     c.lineTo(this.px(4, -10), this.py(12, -10))
     c.closePath(); c.fill()
-
-    // Preserve only the strongest scale/readability anchors.
-    this.wallRect(23, 7.1, 6.2, 3.9, -9.95, '#9eb6aa')
-    this.wallRect(23.18, 7.3, 5.84, 3.52, -9.94, '#c9dfcf')
-    this.wallRect(25.98, 7.25, .15, 3.6, -9.9, '#fff4d4')
-    this.wallRect(23.1, 9.02, 6, .14, -9.9, '#fff4d4')
-
-    const lift = this.scene.boxes.find(box => box.definition.id === 'moving-cabinet')?.definition
-    if (lift) {
-      for (const x of [lift.center[0] - lift.halfExtents[0] + .12, lift.center[0] + lift.halfExtents[0] - .12]) {
-        this.worldLine(x, lift.center[1] - .65, -8.8, x, lift.center[1] + lift.motion.distance + .65, -8.8, '#64816c88', 2)
-      }
-    }
   }
+
+  drawSteam() {
+    const zone = LEVEL.continuousForceZones[0]
+    const [x, y, z] = zone.center, [hx, hy] = zone.halfExtents
+    const c = this.ctx
+    c.save()
+    c.globalAlpha = this.scene.steamActive ? .2 : .08
+    c.fillStyle = '#fff8dc'
+    c.fillRect(this.px(x - hx, z), this.py(y + hy, z), hx * 2 * this.camera.scale, hy * 2 * this.camera.scale)
+    c.restore()
+  }
+
+  drawParticles() {}
+  tag() {}
 }

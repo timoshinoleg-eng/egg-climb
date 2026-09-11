@@ -4,9 +4,15 @@ import { KitchenRun, KITCHEN_OPTIONS, KITCHEN_BEST_SCORE_KEY } from '../dist/gam
 import { FOUNDATION_LEVEL } from '../dist/sim/level.js'
 import { BEST_SCORE_KEY } from '../dist/game/storage.js'
 
-function isMaxLaunch() {
+function isConstrainedKitchenLaunch() {
   const params = new URLSearchParams(location.search)
-  return params.get('max') === '1' || params.has('WebAppStartParam') || location.hash.includes('WebAppData=')
+  const explicitMax = params.get('max') === '1' || params.has('WebAppStartParam') || location.hash.includes('WebAppData=')
+  // MAX does not guarantee that every launch path carries our custom ?max=1
+  // marker. A real phone WebView is coarse-touch, so prefer the low-cost
+  // renderer there as well. Touch-capable desktop/laptop devices with a fine
+  // primary pointer keep the full renderer.
+  const coarseTouch = navigator.maxTouchPoints > 0 && window.matchMedia('(pointer: coarse)').matches
+  return explicitMax || coarseTouch
 }
 
 const GARDEN = Object.freeze({
@@ -20,7 +26,7 @@ const GARDEN = Object.freeze({
 const KITCHEN = Object.freeze({
   id: 'kitchen', Run: KitchenRun, worker: './kitchen-worker.js', planar: false,
   ...KITCHEN_OPTIONS, bestKey: KITCHEN_BEST_SCORE_KEY,
-  loadView: async () => isMaxLaunch()
+  loadView: async () => isConstrainedKitchenLaunch()
     ? (await import('./kitchen-max-view.js')).KitchenMaxView
     : (await import('./kitchen-readability-view.js')).KitchenReadabilityView,
   startLabel: "Let's escape", running: 'A LITTLE BREAK FOR FREEDOM', reset: 'BACK TO THE TABLE',
