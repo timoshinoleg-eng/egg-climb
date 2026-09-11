@@ -22,7 +22,7 @@ test('static playtest package contains only browser runtime assets and preserves
   assert.ok(names.includes('index.html'))
   assert.ok(names.includes('max.html'))
   for (const file of ['play/index.html', 'play/main.js', 'play/garden-view.js', 'play/style.css', 'play/layout.css', 'play/egg.svg', 'play/sim-worker.js', 'dist/game/arcade-run.js']) assert.ok(names.includes(file), file)
-  for (const file of ['play/kitchen.html', 'play/kitchen-worker.js', 'play/kitchen-view.js', 'play/kitchen-readability-view.js', 'play/kitchen-art.js', 'play/egg-art.js', 'play/modes.js', 'play/kitchen.css', 'dist/game/kitchen-run.js', 'dist/render/kitchen-scene.js', 'dist/render/kitchen-route-presentation.js']) assert.ok(names.includes(file), file)
+  for (const file of ['play/kitchen.html', 'play/kitchen-worker.js', 'play/kitchen-view.js', 'play/kitchen-readability-view.js', 'play/kitchen-max-view.js', 'play/kitchen-art.js', 'play/egg-art.js', 'play/modes.js', 'play/kitchen.css', 'dist/game/kitchen-run.js', 'dist/render/kitchen-scene.js', 'dist/render/kitchen-route-presentation.js']) assert.ok(names.includes(file), file)
   assert.equal(names.some(name => /witness|worker-observer|kitchen-inputs/.test(name)), false)
   const kitchenWorker = await readFile(join(output, 'play', 'kitchen-worker.js'), 'utf8')
   assert.match(kitchenWorker, /\.\.\/vendor\/rapier\/rapier\.mjs/)
