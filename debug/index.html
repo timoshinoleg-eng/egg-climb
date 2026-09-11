@@ -6,9 +6,13 @@
   <script>
   (() => {
     const params = new URLSearchParams(location.search)
-    const explicitLab = ['feel', 'physics', 'scenario', 'visual', 'order'].some(key => params.has(key))
     const maxLaunch = params.get('max') === '1' || params.has('WebAppStartParam') || location.hash.includes('WebAppData=')
-    if (maxLaunch && !explicitLab) location.replace('../play/kitchen.html' + location.search + location.hash)
+    const allowMaxLab = params.get('lab') === '1'
+    if (maxLaunch && !allowMaxLab) {
+      for (const key of ['feel', 'physics', 'scenario', 'visual', 'order', 'lab', 'mode']) params.delete(key)
+      const search = params.toString()
+      location.replace('../play/kitchen.html' + (search ? `?${search}` : '') + location.hash)
+    }
   })()
   </script>
   <title>Egg Climb — Game Feel Lab</title>
