@@ -39,6 +39,8 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
     await page.goto(`http://127.0.0.1:${port}/egg-climb/?max=1`)
     await expect(page).toHaveURL(/\/egg-climb\/play\/kitchen\.html\?max=1/)
     await expect(page.locator('#gameStage')).toHaveAttribute('data-level', 'kitchen-escape-v1')
+    await expect(page.locator('#gameStage')).toHaveAttribute('data-quality', 'low')
+    await expect(page.locator('#gameStage')).toHaveAttribute('data-dpr', '1')
     await expect(page.locator('#onboardingTitle')).toContainText('egg-sized escape')
 
     await page.goto(`http://127.0.0.1:${port}/egg-climb/?max=1&feel=2d-hold-assist&scenario=jump-base`)
@@ -56,6 +58,8 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
     await page.goto(`http://127.0.0.1:${port}/egg-climb/max.html?feel=2d-hold-assist&scenario=jump-base`)
     await expect(page).toHaveURL(/\/egg-climb\/play\/kitchen\.html\?max=1$/)
     await expect(page.locator('#gameStage')).toHaveAttribute('data-level', 'kitchen-escape-v1')
+    await expect(page.locator('#gameStage')).toHaveAttribute('data-quality', 'low')
+    await expect(page.locator('#gameStage')).toHaveAttribute('data-dpr', '1')
 
     await page.goto(`http://127.0.0.1:${port}/egg-climb/?max=1&lab=1&feel=2d-hold-assist&scenario=jump-base`)
     await expect(page).toHaveURL(/\/egg-climb\/debug\/index\.html\?max=1&lab=1&feel=2d-hold-assist&scenario=jump-base/)
