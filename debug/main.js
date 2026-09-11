@@ -1,3 +1,6 @@
+import { SafeStorage } from '../dist/game/storage.js'
+import { InputState } from '../dist/game/input-state.js'
+import { bindGameInput } from '../dist/game/browser-input.js'
 import { installMaxPlaytest, showMaxExport } from './max-playtest.js'
 import * as THREE from 'three'
 import { FixedTickInputScheduler } from '../dist/host/fixed-tick-scheduler.js'
@@ -6,11 +9,9 @@ import { EGG_COLLIDER_INDEX_DATA, EGG_COLLIDER_VERTEX_DATA } from '../dist/sim/e
 import { PHYSICS_LAB_PRESETS, PHYSICS_V1 } from '../dist/sim/physics-presets.js'
 import { FEEL_PRESETS, DEFAULT_FEEL } from '../dist/sim/feel-presets.js'
 import { physicsLabScenario } from '../dist/sim/physics-lab-fixtures.js'
-import { NEUTRAL_INPUT } from '../dist/sim/contracts.js'
 import { FOUNDATION_LEVEL } from '../dist/sim/level.js'
 import { interpolateSnapshots } from '../dist/render/interpolate.js'
 
-const params = new URLSearchParams(location.search)
 const canvas = document.querySelector('#viewport')
 const status = document.querySelector('#status')
 const telemetry = document.querySelector('#telemetry')
@@ -56,7 +57,7 @@ scene.add(new THREE.GridHelper(12, 24, 0x475569, 0x1f2937))
 scene.add(new THREE.AxesHelper(1.5))
 
 const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9, metalness: 0 })
-for (const box of scenario?.level ?? FOUNDATION_LEVEL) {
+for (const box of scenario?.level ?? FOUNDATION_LEVEL.definition.staticBoxes) {
   const [hx, hy, hz] = box.halfExtents
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, hy * 2, hz * 2), platformMaterial)
   mesh.position.set(...box.center)
@@ -100,76 +101,33 @@ for (const part of [supportNormalArrow.line, supportNormalArrow.cone]) {
 }
 scene.add(supportNormalArrow)
 
-const keyboardPressed = new Set()
-const pointerPressed = new Set()
-let jumpHeld = false
-let jumpSource = null
-let pendingJumpDown = false
-let pendingJumpUp = false
-let pendingJumpCancel = false
-window.addEventListener('keydown', (event) => {
-  if (event.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(event.target.tagName)) return
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault()
-  if (event.code === 'Space') {
-    if (!jumpHeld && jumpSource === null) { jumpHeld = true; jumpSource = 'keyboard'; pendingJumpDown = true }
-    return
-  }
-  keyboardPressed.add(event.code)
-})
-window.addEventListener('keyup', (event) => {
-  if (event.code === 'Space') {
-    if (jumpHeld && jumpSource === 'keyboard') { jumpHeld = false; jumpSource = null; pendingJumpUp = true }
-    return
-  }
-  keyboardPressed.delete(event.code)
-})
-window.addEventListener('blur', () => {
-  keyboardPressed.clear(); pointerPressed.clear()
-  if (jumpHeld) pendingJumpCancel = true
-  jumpHeld = false; jumpSource = null
-})
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { keyboardPressed.clear(); pointerPressed.clear(); if (jumpHeld) pendingJumpCancel = true; jumpHeld = false; jumpSource = null }
-})
-
+const inputState = new InputState()
 function sampleInput() {
-  const isDown = code => keyboardPressed.has(code) || pointerPressed.has(code)
-  const right = isDown('ArrowRight') || isDown('KeyD') ? 1 : 0
-  const left = isDown('ArrowLeft') || isDown('KeyA') ? 1 : 0
-  const backward = isDown('ArrowDown') || isDown('KeyS') ? 1 : 0
-  const forward = isDown('ArrowUp') || isDown('KeyW') ? 1 : 0
-  const jumpDown = pendingJumpDown
-  const jumpUp = pendingJumpUp
-  const jumpCancel = pendingJumpCancel
-  pendingJumpDown = false
-  pendingJumpUp = false
-  pendingJumpCancel = false
-  const input = { ...NEUTRAL_INPUT, moveX: right - left, moveZ: expectedFeel.dimensionMode === '3d' ? backward - forward : 0, jumpDown, jumpUp, jumpCancel }
+  const input = inputState.sample(expectedFeel.dimensionMode !== '3d')
   session.samples.push({ tick: nextSampleTick++, ...input })
   return input
 }
 
 function installPointerControls() {
   const controls = [
-    ['←', 'ArrowLeft'], ['→', 'ArrowRight'], ...(expectedFeel.dimensionMode === '3d' ? [['↑', 'ArrowUp'], ['↓', 'ArrowDown']] : []),
+    ['←', 'left'], ['→', 'right'], ...(expectedFeel.dimensionMode === '3d' ? [['↑', 'forward'], ['↓', 'backward']] : []),
   ]
-  controls.forEach(([label, code], index) => {
+  controls.forEach(([label, action], index) => {
     const button = document.createElement('button')
+    button.type = 'button'
     button.className = 'pointer-control'
+    button.dataset.gameAction = action
     button.textContent = label
     button.style.cssText = `position:fixed;left:${16 + index * 48}px;bottom:18px;z-index:2;opacity:.78;padding:10px 14px;`
     document.body.append(button)
-    const end = () => pointerPressed.delete(code)
-    button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(event.pointerId); pointerPressed.add(code) })
-    button.addEventListener('pointerup', end); button.addEventListener('pointercancel', end); button.addEventListener('lostpointercapture', end)
   })
   const button = document.createElement('button')
-  button.className = 'pointer-control'; button.textContent = 'JUMP'
+  button.type = 'button'
+  button.className = 'pointer-control'
+  button.dataset.gameAction = 'jump'
+  button.textContent = 'JUMP'
   button.style.cssText = 'position:fixed;right:20px;bottom:18px;z-index:2;opacity:.85;padding:14px 18px;'
   document.body.append(button)
-  const end = cancel => { if (jumpHeld && jumpSource === 'pointer') { if (cancel) pendingJumpCancel = true; else pendingJumpUp = true }; if (jumpSource === 'pointer') { jumpHeld = false; jumpSource = null } }
-  button.addEventListener('pointerdown', event => { event.preventDefault(); button.setPointerCapture(event.pointerId); if (!jumpHeld) { jumpHeld = true; jumpSource = 'pointer'; pendingJumpDown = true } })
-  button.addEventListener('pointerup', () => end(false)); button.addEventListener('pointercancel', () => end(true)); button.addEventListener('lostpointercapture', () => end(true))
 }
 installPointerControls()
 installMaxPlaytest()
@@ -193,7 +151,8 @@ let previous = await simulation.init()
 let current = previous
 const scheduler = new FixedTickInputScheduler()
 const historyKey = 'egg-climb-game-feel-history-v1'
-const readHistory = () => { try { const value = JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(value) ? value.slice(-24) : [] } catch { return [] } }
+const storage = new SafeStorage()
+const readHistory = () => storage.read(historyKey, [], Array.isArray, 4_194_304).slice(-24)
 const requestedOrder = Number(query.get('order') ?? 0)
 const sessionOrder = Number.isInteger(requestedOrder) && requestedOrder >= 0 && requestedOrder < 8 ? requestedOrder : 0
 const plannedFeelOrder = Object.keys(FEEL_PRESETS)
@@ -209,11 +168,11 @@ attemptCard.textContent = `Attempt 1/3 · ${scenarioKey}`
 for (const key of Object.keys(FEEL_PRESETS)) { const option = document.createElement('option'); option.value = key; option.textContent = key; feelSelect.append(option) }
 feelSelect.value = feelKey; visualSelect.value = visualKey; scenarioSelect.value = scenarioKey
 const reloadWith = changes => { const next = new URL(location.href); Object.entries(changes).forEach(([key, value]) => next.searchParams.set(key, value)); location.href = next.toString() }
-const archiveAndReload = async changes => { if (exportBusy) return; const record = await finalizeCurrentRun(); if (!record) return; appendHistory(record); reloadWith(changes) }
+const archiveAndReload = async changes => { if (exportBusy) return; try { const record = await finalizeCurrentRun(); if (!record) return; appendHistory(record); reloadWith(changes) } catch { actionStatus.textContent = 'Worker unavailable; reload to retry.' } }
 feelSelect.addEventListener('change', () => archiveAndReload({ feel: feelSelect.value }))
 scenarioSelect.addEventListener('change', () => archiveAndReload({ scenario: scenarioSelect.value }))
 visualSelect.addEventListener('change', () => archiveAndReload({ visual: visualSelect.value }))
-document.querySelector('#resetButton').addEventListener('click', () => archiveAndReload({}))
+document.querySelector('#resetButton').addEventListener('click', () => workerFailure ? reloadWith({}) : archiveAndReload({}))
 document.querySelector('#saveRating').addEventListener('click', () => { const values = ['clarity', 'control', 'fun'].map(key => Number(document.querySelector(`#${key}Rating`).value)); if (!values.every(value => Number.isInteger(value) && value >= 1 && value <= 5)) { actionStatus.textContent = 'Ratings must be integers 1–5'; return } session.ratings.push({ attempt: attempt.index, clarity: values[0], control: values[1], fun: values[2], notes: document.querySelector('#notes').value, tick: current.tick }); actionStatus.textContent = `Rating saved · attempt ${attempt.index}` })
 document.querySelector('#exportButton').addEventListener('click', async () => {
   if (exportBusy) return
@@ -232,29 +191,36 @@ document.querySelector('#exportButton').addEventListener('click', async () => {
 let lastTime = performance.now()
 let telemetryTimer = 0
 let advancePending = false
+let advanceTask = Promise.resolve()
+let workerFailure = null
+let disposed = false
+let rafId = 0
+let pulseUntil = 0
 let lastStepped = 0
 let paused = document.hidden
 function appendHistory(record) {
   const history = readHistory()
   history.push(record)
-  localStorage.setItem(historyKey, JSON.stringify(history.slice(-24)))
+  if (!storage.write(historyKey, history.slice(-24))) actionStatus.textContent = 'Storage unavailable; this session can still be exported.'
 }
 async function finalizeCurrentRun() {
   if (exportBusy) return null
   exportBusy = true
   try {
-    while (scheduler.pendingCount > 0 || advancePending) { dispatchNextBatch(); await new Promise(resolve => setTimeout(resolve, 0)) }
+    while (scheduler.pendingCount > 0 || advancePending) {
+      if (workerFailure || disposed) throw workerFailure ?? new Error('Playtest closed')
+      dispatchNextBatch()
+      await advanceTask
+    }
+    if (workerFailure || disposed) throw workerFailure ?? new Error('Playtest closed')
     const fingerprint = await simulation.fingerprint()
     const finishTick = current.tick
     return { ...session, finishTick, fingerprint, identity: current.identity, samples: session.samples.filter(sample => sample.tick >= 0 && sample.tick < finishTick) }
   } finally { scheduler.resetTiming(); lastTime = performance.now(); exportBusy = false }
 }
-document.querySelector('#nextVariant').addEventListener('click', async () => {
-  const record = await finalizeCurrentRun()
-  if (!record) return
-  appendHistory(record)
+document.querySelector('#nextVariant').addEventListener('click', () => {
   const nextFeel = balancedFeelOrder[(balancedFeelOrder.indexOf(feelKey) + 1) % Math.max(1, balancedFeelOrder.length)] ?? feelKey
-  reloadWith({ order: sessionOrder, feel: nextFeel })
+  void archiveAndReload({ order: sessionOrder, feel: nextFeel })
 })
 status.textContent = `running — ${expectedPreset.id} · ${scenarioKey} · worker physics · arrows/WASD torque · Space jump`
 
@@ -266,11 +232,12 @@ const trailGeometry = new THREE.BufferGeometry()
 scene.add(new THREE.Line(trailGeometry, new THREE.LineBasicMaterial({ color: 0xa78bfa })))
 
 function dispatchNextBatch() {
-  if (advancePending || scheduler.pendingCount === 0) return
+  if (disposed || workerFailure || (paused && !exportBusy) || advancePending || scheduler.pendingCount === 0) return
   const inputs = scheduler.takeBatch()
   if (inputs.length === 0) return
   advancePending = true
-  simulation.advance(inputs).then((result) => {
+  advanceTask = simulation.advance(inputs).then((result) => {
+    if (disposed) return
     previous = result.previous
     current = result.current
     lastStepped = result.stepped
@@ -278,7 +245,7 @@ function dispatchNextBatch() {
     const currentJumpTick = current.feel?.lastJumpTick ?? -1
     const jumpChanged = currentJumpTick >= 0 && currentJumpTick !== lastObservedJumpTick
     if (jumpChanged) { activeJumpTick = currentJumpTick; attempt.launchTick = currentJumpTick; attempt.apexY = current.position.y; attempt.apexTick = current.tick; lastObservedJumpTick = currentJumpTick }
-    if (visualKey === 'feedback' && (previousGrounded !== current.physics.grounded || jumpChanged)) { document.body.classList.add('feel-pulse'); window.clearTimeout(frame.pulseTimer); frame.pulseTimer = window.setTimeout(() => document.body.classList.remove('feel-pulse'), 120) }
+    if (visualKey === 'feedback' && (previousGrounded !== current.physics.grounded || jumpChanged)) { document.body.classList.add('feel-pulse'); pulseUntil = performance.now() + 120 }
     if (wasGrounded && !current.physics.grounded) { launchY = previous.position.y; apex = current.position.y; trail.length = 0 }
     wasGrounded = current.physics.grounded
     if (activeJumpTick !== null && current.position.y > attempt.apexY) { attempt.apexY = current.position.y; attempt.apexTick = current.tick }
@@ -293,6 +260,10 @@ function dispatchNextBatch() {
     if (trail.length > 240) trail.shift()
     trailGeometry.setFromPoints(trail)
   }).catch((error) => {
+    if (disposed) return
+    workerFailure = error
+    scheduler.reset()
+    inputState.reset()
     status.textContent = `worker error: ${error instanceof Error ? error.message : String(error)}`
   }).finally(() => {
     advancePending = false
@@ -317,9 +288,11 @@ function updateContactDebug() {
 }
 
 function frame(now) {
+  if (disposed) return
+  if (pulseUntil > 0 && now >= pulseUntil) { pulseUntil = 0; document.body.classList.remove('feel-pulse') }
   const frameDelta = (now - lastTime) / 1000
   lastTime = now
-  if (!paused && !exportBusy) {
+  if (!paused && !exportBusy && !workerFailure) {
     scheduler.sampleFrame(frameDelta, sampleInput)
     dispatchNextBatch()
   }
@@ -340,7 +313,7 @@ function frame(now) {
   camera.lookAt(transform.position.x, transform.position.y + 0.3, expectedFeel.dimensionMode === '3d' ? transform.position.z : 0)
 
   const feelDebug = current.feel ?? current.debug?.feel
-  const chargeTicks = feelDebug?.chargeTicks ?? (jumpHeld ? Math.max(0, current.tick - (attempt.launchTick ?? current.tick)) : 0)
+  const chargeTicks = feelDebug?.chargeTicks ?? (inputState.held('jump') ? Math.max(0, current.tick - (attempt.launchTick ?? current.tick)) : 0)
   chargeMeter.style.width = `${Math.min(100, (chargeTicks / Math.max(1, expectedFeel.chargeTicks ?? 1)) * 100)}%`
 
   telemetryTimer += Math.min(Math.max(frameDelta, 0), 0.1)
@@ -353,14 +326,49 @@ function frame(now) {
   }
 
   renderer.render(scene, camera)
-  requestAnimationFrame(frame)
+  rafId = requestAnimationFrame(frame)
 }
-requestAnimationFrame(frame)
+rafId = requestAnimationFrame(frame)
 
-window.addEventListener('visibilitychange', () => {
+function discardUnsentInput() {
+  const dropped = scheduler.discardPending()
+  session.samples.splice(Math.max(0, session.samples.length - dropped), dropped)
+  nextSampleTick -= dropped
+  lastTime = performance.now()
+}
+const disposeInput = bindGameInput(inputState, {
+  active: () => !paused && !disposed && !workerFailure,
+  onCancel: () => { paused = true; discardUnsentInput() },
+})
+function resumeLab() {
+  if (disposed) return
   paused = document.hidden
-  if (paused) { keyboardPressed.clear(); pointerPressed.clear() }
   scheduler.resetTiming()
   lastTime = performance.now()
-})
-window.addEventListener('pagehide', () => { void simulation.free() }, { once: true })
+}
+window.addEventListener('focus', resumeLab)
+document.addEventListener('visibilitychange', resumeLab)
+function disposeLab() {
+  if (disposed) return
+  disposed = true
+  cancelAnimationFrame(rafId)
+  pulseUntil = 0
+  document.body.classList.remove('feel-pulse')
+  scheduler.reset()
+  disposeInput()
+  simulation.terminate()
+  window.removeEventListener('resize', resize)
+  window.removeEventListener('focus', resumeLab)
+  document.removeEventListener('visibilitychange', resumeLab)
+  const geometries = new Set()
+  const materials = new Set()
+  scene.traverse(object => {
+    if (object.geometry) geometries.add(object.geometry)
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) if (material) materials.add(material)
+  })
+  for (const geometry of geometries) geometry.dispose()
+  for (const material of materials) material.dispose()
+  renderer.dispose()
+}
+window.addEventListener('pagehide', disposeLab, { once: true })
+window.addEventListener('pageshow', event => { if (event.persisted && disposed) location.reload() })

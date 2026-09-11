@@ -21,9 +21,12 @@ import type { SimulationFrame, SimulationHost } from './contracts.js'
 import { assertTickInputs } from './validation.js'
 import type { WorkerRequest, WorkerRequestPayload, WorkerResponse, WorkerRuntimeInfo, WorkerSuccessResponse } from './worker-protocol.js'
 
+export const WORKER_REQUEST_TIMEOUT_MS = 10_000
+
 type SuccessType = WorkerSuccessResponse['type']
 
 type PendingRequest = {
+  readonly timer: ReturnType<typeof setTimeout>
   readonly expectedType: SuccessType
   readonly resolve: (response: WorkerSuccessResponse) => void
   readonly reject: (error: Error) => void
@@ -35,13 +38,21 @@ export class WorkerSimulationHost implements SimulationHost {
   private nextId = 1
   private closed = false
   private initialized = false
+  private freeing: Promise<void> | undefined
   private runtimeInfoValue: WorkerRuntimeInfo | undefined
 
   private readonly expectedFeel: FeelPreset
   private readonly expectedPreset: PhysicsPreset
   private readonly expectedLevel: ResolvedLevel
 
-  constructor(url: string | URL, expectedPreset: PhysicsPreset = PHYSICS_V1, expectedFeel: FeelPreset = DEFAULT_FEEL, expectedLevel: ResolvedLevel = FOUNDATION_LEVEL) {
+  constructor(
+    url: string | URL,
+    expectedPreset: PhysicsPreset = PHYSICS_V1,
+    expectedFeel: FeelPreset = DEFAULT_FEEL,
+    expectedLevel: ResolvedLevel = FOUNDATION_LEVEL,
+    private readonly requestTimeoutMs = WORKER_REQUEST_TIMEOUT_MS,
+  ) {
+    if (!Number.isFinite(requestTimeoutMs) || requestTimeoutMs <= 0) throw new Error('Invalid worker request timeout')
     this.expectedPreset = immutablePhysicsPreset(expectedPreset)
     this.expectedFeel = immutableFeelPreset(expectedFeel)
     this.expectedLevel = expectedLevel
@@ -63,6 +74,7 @@ export class WorkerSimulationHost implements SimulationHost {
         this.fail(new Error(`Simulation worker returned an unknown response id: ${response.id}`))
         return
       }
+      clearTimeout(request.timer)
       if (response.type === 'error') {
         this.pending.delete(response.id)
         request.reject(new Error(response.message))
@@ -88,7 +100,10 @@ export class WorkerSimulationHost implements SimulationHost {
   }
 
   private rejectAll(error: Error): void {
-    for (const request of this.pending.values()) request.reject(error)
+    for (const request of this.pending.values()) {
+      clearTimeout(request.timer)
+      request.reject(error)
+    }
     this.pending.clear()
   }
 
@@ -105,8 +120,13 @@ export class WorkerSimulationHost implements SimulationHost {
     const id = this.nextId
     this.nextId += 1
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { expectedType, resolve: response => resolve(response as T), reject })
-      this.worker.postMessage({ ...message, id, protocolVersion: WORKER_PROTOCOL_VERSION } satisfies WorkerRequest)
+      const timer = setTimeout(() => this.fail(new Error(`Simulation worker ${message.type} timed out`)), this.requestTimeoutMs)
+      this.pending.set(id, { timer, expectedType, resolve: response => resolve(response as T), reject })
+      try {
+        this.worker.postMessage({ ...message, id, protocolVersion: WORKER_PROTOCOL_VERSION } satisfies WorkerRequest)
+      } catch (error) {
+        this.fail(error instanceof Error ? error : new Error(String(error)))
+      }
     })
   }
 
@@ -116,7 +136,7 @@ export class WorkerSimulationHost implements SimulationHost {
     const response = await this.request<Extract<WorkerSuccessResponse, { type: 'initialized' }>>({ type: 'init' }, 'initialized')
     const info = response.runtimeInfo
     if (
-      info.runtime !== 'worker' ||
+      !info || info.runtime !== 'worker' ||
       info.feelPresetId !== this.expectedFeel.id ||
       info.feelPresetVersion !== this.expectedFeel.version ||
       info.feelPresetHash !== computeFeelPresetHash(this.expectedFeel) ||
@@ -162,17 +182,21 @@ export class WorkerSimulationHost implements SimulationHost {
     return response.snapshot
   }
 
-  async free(): Promise<void> {
-    if (this.closed) return
-    try {
-      await this.request<Extract<WorkerSuccessResponse, { type: 'freed' }>>({ type: 'free' }, 'freed')
-    } finally {
-      if (!this.closed) {
-        this.closed = true
-        this.initialized = false
-        this.worker.terminate()
-        this.rejectAll(new Error('Simulation worker closed'))
+  /** Synchronous page teardown: terminates WASM and settles every pending request. */
+  terminate(): void {
+    this.fail(new Error('Simulation worker closed'))
+  }
+
+  free(): Promise<void> {
+    if (this.freeing) return this.freeing
+    if (this.closed) return Promise.resolve()
+    this.freeing = (async () => {
+      try {
+        await this.request<Extract<WorkerSuccessResponse, { type: 'freed' }>>({ type: 'free' }, 'freed')
+      } finally {
+        this.terminate()
       }
-    }
+    })()
+    return this.freeing
   }
 }

@@ -62,7 +62,11 @@ The authoritative core is under [`src/sim`](../../src/sim); its consumer-facing
 transport is under [`src/host`](../../src/host). Presentation contracts and
 effect primitives are under [`src/presentation`](../../src/presentation) and
 [`src/render`](../../src/render). The MAX playtest shell is a browser adapter,
-not an alternative simulation implementation.
+not an alternative simulation implementation. The optional `play/` Cloud Garden shell likewise
+uses the Worker host, with Canvas 2D presentation and `src/game/` local round
+lifecycle. Its geometry uses the explicit non-competitive `fixtureStaticBoxes`
+seam; its score and summit are not canonical Kitchen/Daily results. See
+[ADR 0005](../adr/0005-local-arcade-shell.md).
 
 ## 4. Authoritative boundary
 
@@ -311,9 +315,19 @@ iOS WKWebView smoke. Workflows live in [CI](../../.github/workflows/ci.yml) and
 - Production Daily generator and atomic Daily publication flow.
 - Production HTTP replay submission and leaderboard read APIs.
 - A killable production replay executor plus HTTP admission/rate-limit layer.
-- A rendered/playable Kitchen graybox and production Kitchen art/content.
+- Final production Kitchen art/content (the canonical Kitchen now has a playable oblique Canvas client).
 - Local or network ghost gameplay.
 - A final player-selected game-feel winner or full production renderer.
+
+### Playable Kitchen client
+
+`play/kitchen.html` is a second mode of the shared client, backed by canonical
+Kitchen options rather than fixture geometry. It exposes full X/Y/Z controls,
+projects canonical box corners, and interpolates kinematics using simulation ticks.
+Steam/launch cues are read-only observations; only the authoritative completion
+latch ends the Kitchen run successfully. The score and device best remain local.
+See [ADR 0006](../adr/0006-playable-kitchen.md) for lifecycle, rendering and test
+boundaries. The Three.js laboratory is unchanged.
 
 ## 16. Architectural rules for future changes
 

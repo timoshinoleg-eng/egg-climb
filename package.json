@@ -14,7 +14,9 @@
     "test:browser": "npm run build && playwright test",
     "debug:serve": "npm run build && node scripts/serve-debug.mjs",
     "package:playtest": "npm run build && node scripts/package-playtest.mjs",
-    "replay:playtest": "npm run build && node scripts/replay-playtest.mjs"
+    "replay:playtest": "npm run build && node scripts/replay-playtest.mjs",
+    "test:perf": "npm run build && node scripts/measure-arcade.mjs",
+    "test:perf:kitchen": "npm run build && node scripts/measure-arcade.mjs --kitchen"
   },
   "dependencies": {
     "@dimforge/rapier3d-deterministic-compat": "0.20.0",

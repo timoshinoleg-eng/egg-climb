@@ -26,7 +26,7 @@ export interface SimulationOptions {
   readonly feel?: FeelPreset
   readonly preset?: PhysicsPreset
   readonly level?: ResolvedLevel
-  /** Non-competitive Physics/Game Feel Lab geometry; replay execution never uses it. */
+  /** Non-competitive local-practice / Physics Lab geometry; replay execution never uses it. */
   readonly fixtureStaticBoxes?: readonly StaticBoxDefinition[]
   readonly initialEgg?: EggInitialState
 }
@@ -392,6 +392,12 @@ export function createSimulationWithRapier(RAPIER: RapierApi, options: Simulatio
       const moveZ = feel.dimensionMode === '2.5d' ? 0 : clampAxis(input.moveZ)
       if (moveX !== 0 || moveZ !== 0) {
         egg.applyTorqueImpulse({ x: moveZ * preset.controls.torqueImpulse, y: 0, z: -moveX * preset.controls.torqueImpulse }, true)
+      }
+
+      // Torque-only planar contact can stall. Arcade presets explicitly opt in
+      // to fixed-tick lateral steering; legacy preset/hash semantics stay intact.
+      if (preset.controls.driveImpulse !== undefined && (moveX !== 0 || moveZ !== 0)) {
+        egg.applyImpulse({ x: moveX * preset.controls.driveImpulse, y: 0, z: moveZ * preset.controls.driveImpulse }, true)
       }
 
       const support = findSupportContact(world, eggCollider, egg, preset)

@@ -6,7 +6,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
-  reporter: process.env.CI ? 'line' : 'list',
+  // Keep exact failure diagnostics in GitHub check annotations as well as logs.
+  // Log archives may be unreachable from restricted review environments.
+  reporter: process.env.CI ? [['line'], ['github']] : 'list',
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
@@ -18,7 +20,10 @@ export default defineConfig({
     timeout: 30_000,
   },
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'chromium', use: { browserName: 'chromium', launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? {
+      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
+      args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+    } : {} } },
     { name: 'firefox', use: { browserName: 'firefox' } },
     { name: 'webkit', use: { browserName: 'webkit' } },
   ],

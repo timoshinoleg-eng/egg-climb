@@ -1,0 +1,61 @@
+.kitchen-mode { --paper: #f7f3e8; --ink: #345347; --green: #4b6652; --line: #dedfce; }
+.kitchen-mode .stage { background: #eee9d6; border-color: #c9ceb6; box-shadow: 0 6px 0 #e3e3cf; }
+.kitchen-mode .mode-tabs a[aria-current="page"] { background: #efe0b7; color: #5c6548; border-color: #d3c693; }
+.kitchen-mode .world-number { background: #f9e1adad; }
+.kitchen-mode .stage-top { align-items: flex-start; }
+.stage-tools { display: flex; gap: 7px; }
+.overview-button { opacity: 1; pointer-events: auto; }
+.overview-button[aria-pressed="true"] { background: #526b50; color: #faf1d8; }
+.kitchen-mode .start-card { background: #fff9e9ed; }
+.kitchen-mode .field-notes h2 { font-size: 39px; }
+.kitchen-mode .garden-stamp { width: 135px; height: 135px; margin-block: 23px; }
+.route-progress-label { display: flex; justify-content: space-between; margin: 22px 0 8px; font-size: 8px; letter-spacing: .08em; color: #698064; }
+.route-progress-label b { color: #345347; font-family: ui-monospace, monospace; }
+#routeProgress { appearance: none; -webkit-appearance: none; width: 100%; height: 5px; border: 0; border-radius: 5px; overflow: hidden; background: #dce1cd; }
+#routeProgress::-webkit-progress-bar { background: #dce1cd; }
+#routeProgress::-webkit-progress-value { background: #8ca171; border-radius: 5px; }
+#routeProgress::-moz-progress-bar { background: #8ca171; border-radius: 5px; }
+.mechanics-card { border-top: 1px solid var(--line); padding-top: 22px; }
+.mechanics-card > .eyebrow { font-size: 8px; }
+.mechanics-card > div { display: flex; align-items: center; gap: 8px; min-height: 40px; margin-top: 8px; font-size: 10px; border-bottom: 1px solid #dde0ce; }
+.mechanic-icon { font-size: 18px; color: #9a9d75; width: 16px; }
+.mechanics-card b { margin-left: auto; font: 8px ui-monospace, monospace; color: #8a967d; }
+.mechanics-card .active b { color: #a67239; font-weight: 700; }
+.mechanics-card .active .mechanic-icon { color: #bb8b4f; }
+.kitchen-tip { padding-top: 20px; font-size: 10px; }
+.kitchen-tip b { font-weight: 600; }
+.kitchen-tip p { color: var(--muted); margin-top: 5px; line-height: 1.8; }
+.kitchen-mode .play-column { grid-template-rows: 34px minmax(0, 1fr) 90px; }
+.kitchen-dpad { display: grid; grid-template-columns: repeat(3,44px) auto; grid-template-rows: repeat(2,36px); gap: 5px; }
+.kitchen-dpad .control-button { width: 44px; height: 36px; font-size: 20px; }
+.kitchen-dpad .forward-button { grid-column: 2; grid-row: 1; }
+.kitchen-dpad .backward-button { grid-column: 2; grid-row: 2; }
+.kitchen-dpad [data-game-action="left"] { grid-column: 1; grid-row: 2; }
+.kitchen-dpad [data-game-action="right"] { grid-column: 3; grid-row: 2; }
+.kitchen-dpad .control-caption { grid-column: 4; grid-row: 2; align-self: center; white-space: nowrap; }
+.kitchen-mode .jump-button { min-width: 141px; height: 51px; background: #eee3bf; border-color: #d2c797; }
+@media (max-height: 820px) and (min-width: 981px) { .kitchen-mode .garden-stamp { width: 95px; height: 95px; margin: 13px 0; } .mechanics-card { padding-top: 17px; } .kitchen-tip { padding-top: 10px; } .kitchen-mode .field-notes h2 { font-size: 34px; margin-top: 13px; } }
+@media (max-width: 620px) {
+  .kitchen-mode .play-column { grid-template-rows: 34px minmax(0,1fr) 114px; }
+  .kitchen-mode .control-deck { align-items: center; padding-top: 7px; }
+  .kitchen-dpad { grid-template-columns: repeat(3,45px); grid-template-rows: repeat(2,45px); gap: 5px; }
+  .kitchen-dpad .control-button { width: 45px; height: 45px; font-size: 22px; }
+  .kitchen-mode .jump-button { height: 59px; min-width: 112px; }
+  .kitchen-mode .start-card { padding: 15px 19px; }
+  .kitchen-mode .start-card h1 { font-size: 23px; }
+  .kitchen-mode .stage-bottom { font-size: 6.5px; letter-spacing: .06em; }
+  .kitchen-mode .height-value { font-size: 31px; }
+  .kitchen-mode .practice-label { white-space: nowrap; }
+}
+@media (max-height: 690px) and (max-width: 620px) { .kitchen-mode .start-card p { display: none; } .kitchen-mode .start-card h1 { font-size: 21px; } .kitchen-mode .play-column { grid-template-rows: 30px minmax(0,1fr) 105px; } }
+@media (max-height: 620px) and (min-width: 621px) { .kitchen-mode .play-column { grid-template-rows: 30px minmax(0,1fr) 75px; } .kitchen-dpad { grid-template-rows: repeat(2,32px); } .kitchen-dpad .control-button { height: 32px; } }
+
+@media (max-height:500px) and (max-width:1000px) {
+  .kitchen-mode .play-column { grid-template-rows: 28px minmax(0,1fr) 98px; }
+  .kitchen-dpad { grid-template-rows: repeat(2,44px); }
+  .kitchen-dpad .control-button { min-height: 44px; }
+  .kitchen-mode .start-card { padding: 10px 15px; bottom: 25px; }
+  .kitchen-mode .start-card .eyebrow, .kitchen-mode .start-card p, .kitchen-mode .onboarding-keys { display: none; }
+  .kitchen-mode .start-card h1 { font-size: 18px; margin: 0 0 8px; }
+  .kitchen-mode .start-card .primary-button { min-height: 40px; padding-block: 7px; }
+}
