@@ -33,7 +33,8 @@ export function createDebugServer() {
       const url = new URL(request.url ?? '/', 'http://localhost')
       if (url.pathname === '/') {
         const lab = ['max', 'feel', 'physics', 'scenario', 'visual', 'order'].some(key => url.searchParams.has(key))
-        const page = lab ? '/debug/index.html' : url.searchParams.get('mode') === 'kitchen' ? '/play/kitchen.html' : '/play/index.html'
+        const garden = url.searchParams.get('mode') === 'garden'
+        const page = lab ? '/debug/index.html' : garden ? '/play/index.html' : '/play/kitchen.html'
         response.writeHead(302, { Location: `${page}${url.search}` }).end()
         return
       }
