@@ -31,7 +31,7 @@ export async function packagePlaytest() {
   await copyFile(join(ROOT, 'debug', 'max-playtest.js'), join(OUTPUT, 'debug', 'max-playtest.js'))
   await copyFile(join(ROOT, 'debug', 'style.css'), join(OUTPUT, 'debug', 'style.css'))
   await copyFile(join(ROOT, 'debug', 'sim-worker.js'), join(OUTPUT, 'debug', 'sim-worker.js'))
-  for (const name of ['index.html', 'kitchen.html', 'style.css', 'layout.css', 'kitchen.css', 'main.js', 'modes.js', 'egg-art.js', 'garden-view.js', 'kitchen-view.js', 'kitchen-art.js', 'sim-worker.js', 'kitchen-worker.js', 'egg.svg']) {
+  for (const name of ['index.html', 'kitchen.html', 'style.css', 'layout.css', 'kitchen.css', 'main.js', 'modes.js', 'egg-art.js', 'garden-view.js', 'kitchen-view.js', 'kitchen-readability-view.js', 'kitchen-art.js', 'sim-worker.js', 'kitchen-worker.js', 'egg.svg']) {
     await copyFile(join(ROOT, 'play', name), join(OUTPUT, 'play', name))
   }
   for (const module of ['sim', 'host', 'presentation', 'render', 'game']) {
