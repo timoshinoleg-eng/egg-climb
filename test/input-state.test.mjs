@@ -34,6 +34,18 @@ test('focus loss cancels queued release and restart removes every input edge', (
   input.press('jump', 'other'); input.reset(); assert.deepEqual(input.sample(), { ...NEUTRAL_INPUT, jumpCancel: false })
 })
 
+test('repeated blur and visibility cancellation preserve one queued jump cancel edge', () => {
+  const input = new InputState()
+  input.press('jump', 'key:Space')
+  input.cancel()
+  input.cancel()
+  const sample = input.sample()
+  assert.equal(sample.jumpCancel, true)
+  assert.equal(sample.jumpDown, false)
+  assert.equal(sample.jumpUp, false)
+  assert.deepEqual(input.sample(), { ...NEUTRAL_INPUT, jumpCancel: false })
+})
+
 test('opposing actions, aliases, and planar sampling preserve neutral axes', () => {
   const input = new InputState()
   input.press('right', 'ArrowRight'); input.press('right', 'KeyD'); input.press('left', 'KeyA')
