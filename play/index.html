@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#f5f4ec">
-  <meta name="description" content="One little egg. A whole sky to explore. A playful, physics-powered climb through the Cloud Garden.">
-  <title>Egg Climb — A little higher.</title>
+  <meta name="description" content="Optional Cloud Garden practice for Egg Climb — a local physics climbing sandbox.">
+  <title>Egg Climb — Cloud Garden Practice</title>
   <link rel="icon" type="image/svg+xml" href="./egg.svg">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./layout.css">
 </head>
 <body data-phase="loading" data-mode="garden">
   <header class="topbar">
-    <a class="wordmark" href="./index.html" aria-label="Egg Climb home"><img src="./egg.svg" alt="" width="34" height="40"><span>egg<span class="wordmark-light">climb</span><span class="logo-dot">.</span></span></a>
+    <a class="wordmark" href="./kitchen.html" aria-label="Egg Climb home"><img src="./egg.svg" alt="" width="34" height="40"><span>egg<span class="wordmark-light">climb</span><span class="logo-dot">.</span></span></a>
     <div class="tagline">SMALL EGG. BIG ADVENTURE.</div>
     <nav aria-label="Game tools">
       <button class="icon-button" id="motionButton" aria-label="Reduce motion" aria-pressed="false" title="Reduce motion"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 3-8 11h6l-1 7 9-12h-6z"/></svg></button>
@@ -26,17 +26,17 @@
       <div class="height-block"><span class="eyebrow">YOUR ASCENT</span><div class="height-value"><span id="height">0.0</span><span class="unit">m</span></div><span class="height-caption">A little higher, every time.</span></div>
       <div class="score-card"><div class="score-label"><span class="eyebrow">SCORE</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.8 6.4 7 .7-5.3 4.6 1.5 6.9-6-3.6-6 3.6 1.5-6.9L2.2 9.1l7-.7z"/></svg></div><strong id="score">00000</strong><div class="best-row"><span>PERSONAL BEST</span><span id="bestScore">00000</span></div></div>
       <section class="route-card" aria-label="Garden milestones"><span class="eyebrow">THE WAY UP</span><ol class="route"><li data-milestone="15"><i></i><div><b>The canopy</b><span>15 m · the view is worth it</span></div><span class="route-star">✧</span></li><li data-milestone="10"><i></i><div><b>Cloudline</b><span>10 m</span></div></li><li data-milestone="5"><i></i><div><b>First flight</b><span>5 m</span></div></li><li class="reached" data-milestone="0"><i></i><div><b>The nest</b><span>Every climb starts here</span></div></li></ol></section>
-      <div class="local-note"><span class="tiny-dot"></span>Just you and your best.<br><span>No account. No pressure.</span></div>
+      <div class="local-note"><span class="tiny-dot"></span>Practice only.<br><span>No account. No leaderboard.</span></div>
     </aside>
 
-    <section class="play-column" aria-label="Cloud Garden arcade">
-      <nav class="mode-tabs" aria-label="Choose a world"><a href="./index.html" aria-current="page"><span>01</span> Cloud Garden</a><a href="./kitchen.html"><span>02</span> Kitchen Escape <i>NEW</i></a></nav>
+    <section class="play-column" aria-label="Cloud Garden practice">
+      <nav class="mode-tabs" aria-label="Choose a mode"><a href="./kitchen.html"><span>01</span> Kitchen Escape <i>MAIN</i></a><a href="./index.html" aria-current="page"><span>P</span> Cloud Garden <i>PRACTICE</i></a></nav>
       <div class="stage" id="gameStage" data-tick="0" data-queue="0" data-quality="high">
-        <canvas id="gameCanvas" tabindex="0" aria-label="Cloud Garden. Use A and D or arrow keys to roll, and Space to jump. Pause with Escape."></canvas>
-        <div class="stage-top"><div class="world-chip"><span class="world-number">01</span><span>CLOUD GARDEN</span></div><button id="pauseButton" class="stage-pause" aria-label="Pause game" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button></div>
+        <canvas id="gameCanvas" tabindex="0" aria-label="Cloud Garden practice. Use A and D or arrow keys to roll, and Space to jump. Pause with Escape."></canvas>
+        <div class="stage-top"><div class="world-chip"><span class="world-number">P</span><span>CLOUD GARDEN</span></div><button id="pauseButton" class="stage-pause" aria-label="Pause game" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button></div>
         <div class="combo-chip" id="combo" hidden>GREAT! <span>×1</span></div>
         <div class="start-card" id="onboarding" aria-labelledby="onboardingTitle">
-          <div class="start-copy"><span class="eyebrow">THE ONLY WAY IS UP</span><h1 id="onboardingTitle">A little leap of faith.</h1><p>Find your balance. Hop between the leaves.<br>Let's see how high a little egg can go.</p></div>
+          <div class="start-copy"><span class="eyebrow">LOCAL PRACTICE</span><h1 id="onboardingTitle">A little leap of faith.</h1><p>Find your balance. Hop between the leaves.<br>Practice before the big escape.</p></div>
           <button class="primary-button" id="startButton" disabled><span id="startLabel">Growing your garden…</span><span aria-hidden="true">↗</span></button>
           <div class="onboarding-keys"><span><kbd>←</kbd><kbd>→</kbd> to roll</span><span><kbd>space</kbd> to hop</span></div>
         </div>
@@ -49,16 +49,16 @@
     </section>
 
     <aside class="field-notes" aria-label="Climbing guide">
-      <div class="live-label"><span class="tiny-dot"></span> A FRESH PERSPECTIVE</div>
+      <div class="live-label"><span class="tiny-dot"></span> PRACTICE GARDEN</div>
       <h2>Less rush.<br>More <span>rise.</span></h2>
-      <p>A wobbly little adventure<br>with a whole lot of heart.</p>
+      <p>A wobbly little practice climb<br>before the giant world.</p>
       <div class="garden-stamp" aria-hidden="true"><svg viewBox="0 0 180 180"><defs><path id="stampCircle" d="M90,90m-67,0a67,67 0 1,1 134,0a67,67 0 1,1 -134,0"/></defs><circle cx="90" cy="90" r="83"/><text><textPath href="#stampCircle" startOffset="3%">KEEP GROWING · KEEP GOING · </textPath></text><path class="sprout-stem" d="M90 125V67M90 103C58 105 48 83 53 70c24 1 40 9 37 33M90 85c-4-27 20-41 37-36 1 19-12 35-37 36"/><path class="sprout-ground" d="M63 128q27-14 54 0"/></svg></div>
       <div class="how-to"><span class="eyebrow">A FEW LITTLE POINTERS</span><div><span class="tip-number">01</span><p><b>Roll into it.</b><br>Arrows or A / D to steer.</p></div><div><span class="tip-number">02</span><p><b>Take the leap.</b><br>Space or HOP to jump.</p></div><div><span class="tip-number">03</span><p><b>Make it a streak.</b><br>Higher landings earn a bonus.</p></div></div>
       <button class="text-button" id="restartButton" disabled>Back to the nest <span aria-hidden="true">↺</span></button>
     </aside>
   </main>
 
-  <footer class="page-footer"><span>MADE OF SMALL LEAPS & A LITTLE COURAGE</span><span id="performance" title="Measured rendering telemetry">WORKER PHYSICS · 60 Hz</span></footer>
+  <footer class="page-footer"><span>OPTIONAL LOCAL PRACTICE</span><span id="performance" title="Measured rendering telemetry">WORKER PHYSICS · 60 Hz</span></footer>
 
   <dialog class="game-dialog" id="resultDialog" aria-labelledby="resultTitle">
     <div class="result-egg" aria-hidden="true">✧</div><span class="eyebrow" id="endLabel">GAME OVER</span><h2 id="resultTitle">A cracking good run.</h2><p id="resultCopy">Every fall is a fresh start.</p><div class="record-badge" id="recordBadge" hidden>✦ NEW PERSONAL BEST ✦</div>
@@ -66,9 +66,9 @@
     <button class="primary-button" id="playAgainButton">One more climb <span aria-hidden="true">↗</span></button><button class="text-button" id="resultHomeButton">Back to the nest</button><p class="persistence-note" id="storageNote" hidden>Storage is unavailable. Your best stays in memory for this visit.</p>
   </dialog>
   <dialog class="game-dialog" id="pauseDialog" aria-labelledby="pauseTitle"><span class="eyebrow">TAKE A BREATHER</span><h2 id="pauseTitle">The sky can wait.</h2><p>Your climb is right where you left it.</p><button class="primary-button" id="resumeButton">Keep climbing <span aria-hidden="true">↗</span></button><button class="text-button" id="pauseRestartButton">Start a fresh climb</button></dialog>
-  <dialog class="game-dialog help-dialog" id="helpDialog" aria-labelledby="helpTitle"><span class="eyebrow">A FIELD GUIDE FOR LITTLE EGGS</span><h2 id="helpTitle">Small moves. Big heights.</h2><p><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to roll.<br><kbd>Space</kbd> to hop. <kbd>Esc</kbd> to pause.<br>On a phone, hold the arrows and tap HOP.</p><p>Earn 10 points for every 10 cm of your highest climb. Land on a higher leaf to build a bonus of up to 50 points. Reach the canopy at 15 m!</p><p class="help-small">This is a local practice garden, not an online leaderboard. Your best is saved on this device when storage is available.</p><button class="primary-button" id="closeHelpButton">Got it. Let's grow. <span aria-hidden="true">↗</span></button></dialog>
+  <dialog class="game-dialog help-dialog" id="helpDialog" aria-labelledby="helpTitle"><span class="eyebrow">A FIELD GUIDE FOR LITTLE EGGS</span><h2 id="helpTitle">Small moves. Big heights.</h2><p><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to roll.<br><kbd>Space</kbd> to hop. <kbd>Esc</kbd> to pause.<br>On a phone, hold the arrows and tap HOP.</p><p>Earn 10 points for every 10 cm of your highest climb. Land on a higher leaf to build a bonus of up to 50 points. Reach the canopy at 15 m!</p><p class="help-small">This is an optional local practice garden, not the main Egg Climb world and not an online leaderboard. Your best is saved on this device when storage is available.</p><button class="primary-button" id="closeHelpButton">Got it. Let's grow. <span aria-hidden="true">↗</span></button></dialog>
   <section id="errorPanel" class="error-panel" role="alert" hidden><span class="eyebrow">A LITTLE HICCUP</span><h2>The garden needs a moment.</h2><p id="errorMessage">We couldn't start the game. Please reload to try again.</p><button class="primary-button" id="reloadButton">Reload the garden ↻</button><a href="../debug/index.html">Open the physics lab</a></section>
-  <noscript><div class="error-panel">This little garden needs JavaScript to grow. Enable it to play Egg Climb.</div></noscript>
+  <noscript><div class="error-panel">This little garden needs JavaScript to grow. Enable it to practice.</div></noscript>
   <script type="module" src="./main.js"></script>
 </body>
 </html>
