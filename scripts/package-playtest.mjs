@@ -60,7 +60,7 @@ export async function packagePlaytest() {
   const rapier = await readFile(rapierPath, 'utf8')
   await writeFile(rapierPath, rapier.replace("'@dimforge/rapier3d-deterministic-compat'", "'../../vendor/rapier/rapier.mjs'"))
 
-  await writeFile(join(OUTPUT, 'index.html'), `<!doctype html><meta charset="utf-8"><title>Egg Climb</title><script>const lab=['max','feel','physics','scenario','visual','order'].some(key=>new URLSearchParams(location.search).has(key));const kitchen=new URLSearchParams(location.search).get('mode')==='kitchen';location.replace((lab?'./debug/index.html':kitchen?'./play/kitchen.html':'./play/index.html')+location.search+location.hash)</script><noscript>Enable JavaScript to play Egg Climb.</noscript>\n`)
+  await writeFile(join(OUTPUT, 'index.html'), `<!doctype html><meta charset="utf-8"><title>Egg Climb</title><script>const params=new URLSearchParams(location.search);const lab=['max','feel','physics','scenario','visual','order'].some(key=>params.has(key));const garden=params.get('mode')==='garden';location.replace((lab?'./debug/index.html':garden?'./play/index.html':'./play/kitchen.html')+location.search+location.hash)</script><noscript>Enable JavaScript to play Egg Climb.</noscript>\n`)
   return OUTPUT
 }
 
