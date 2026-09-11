@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 async function ready(page){
-  await page.goto('/')
+  await page.goto('/play/index.html')
   await expect(page.locator('body')).toHaveAttribute('data-phase','ready')
   await expect(page.getByRole('button',{name:"Let's climb"})).toBeEnabled()
 }
@@ -39,11 +39,12 @@ test('arcade: start → real input → score → fall → Game Over → clean re
   expect(errors).toEqual([])
 })
 
-test('blur pauses the round, clears held controls and resumes without wall-clock catch-up',async({page})=>{
+test('repeated blur pauses the round, clears held controls and resumes without wall-clock catch-up',async({page})=>{
   await ready(page);await start(page)
+  await page.keyboard.down('Space')
   await page.keyboard.down('ArrowRight')
   await expect.poll(async()=>Number(await page.locator('#gameStage').getAttribute('data-x'))).toBeGreaterThan(0.1)
-  await page.evaluate(()=>window.dispatchEvent(new Event('blur')))
+  await page.evaluate(()=>{window.dispatchEvent(new Event('blur'));window.dispatchEvent(new Event('blur'))})
   await expect(page.locator('#pauseDialog')).toBeVisible()
   await expect(page.locator('[data-game-action="right"]')).not.toHaveClass(/is-held/)
   await expect(page.locator('#gameStage')).toHaveAttribute('data-queue','0')
@@ -51,7 +52,7 @@ test('blur pauses the round, clears held controls and resumes without wall-clock
   const tick=Number(await page.locator('#gameStage').getAttribute('data-tick'))
   await page.waitForTimeout(350)
   expect(Number(await page.locator('#gameStage').getAttribute('data-tick'))).toBe(tick)
-  await page.keyboard.up('ArrowRight')
+  await page.keyboard.up('Space');await page.keyboard.up('ArrowRight')
   await page.getByRole('button',{name:'Keep climbing'}).click()
   await expect(page.locator('body')).toHaveAttribute('data-phase','playing')
   await expect.poll(async()=>Number(await page.locator('#gameStage').getAttribute('data-tick'))).toBeGreaterThan(tick)
@@ -101,7 +102,7 @@ test('restart and pagehide leave one animation owner and no living worker',async
 test('an unresponsive Worker shows a recoverable error instead of hanging forever',async({page})=>{
   test.setTimeout(25000)
   await page.route('**/play/sim-worker.js*',route=>route.fulfill({contentType:'text/javascript',body:'self.onmessage = () => {}'}))
-  await page.goto('/')
+  await page.goto('/play/index.html')
   await expect(page.locator('#errorPanel')).toBeVisible({timeout:15000})
   await expect(page.getByRole('button',{name:'Reload the garden'})).toBeEnabled()
   await page.unroute('**/play/sim-worker.js*')
