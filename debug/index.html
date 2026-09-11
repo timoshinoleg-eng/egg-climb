@@ -3,6 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <script>
+  (() => {
+    const params = new URLSearchParams(location.search)
+    const explicitLab = ['feel', 'physics', 'scenario', 'visual', 'order'].some(key => params.has(key))
+    const maxLaunch = params.get('max') === '1' || params.has('WebAppStartParam') || location.hash.includes('WebAppData=')
+    if (maxLaunch && !explicitLab) location.replace('../play/kitchen.html' + location.search + location.hash)
+  })()
+  </script>
   <title>Egg Climb — Game Feel Lab</title>
   <link rel="stylesheet" href="./style.css" />
   <script type="importmap">
