@@ -15,7 +15,7 @@ const GARDEN = Object.freeze({
 const KITCHEN = Object.freeze({
   id: 'kitchen', Run: KitchenRun, worker: './kitchen-worker.js', planar: false,
   ...KITCHEN_OPTIONS, bestKey: KITCHEN_BEST_SCORE_KEY,
-  loadView: async () => (await import('./kitchen-view.js')).KitchenView,
+  loadView: async () => (await import('./kitchen-readability-view.js')).KitchenReadabilityView,
   startLabel: "Let's escape", running: 'A LITTLE BREAK FOR FREEDOM', reset: 'BACK TO THE TABLE',
   winReason: 'finish', winLabel: 'KITCHEN ESCAPED', winTitle: 'Sunny-side out.',
   winCopy: 'You found the vent. A little courage goes a long way.',
