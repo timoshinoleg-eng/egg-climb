@@ -31,9 +31,9 @@ export class InputState {
     }
   }
 
-  /** Focus loss must cancel, never synthesize a charged jump on resume. */
+  /** Focus loss is idempotent: repeated blur/visibility events must preserve a queued cancel edge. */
   cancel(): void {
-    const wasCharging = this.held('jump') || this.jumpDown || this.jumpUp
+    const wasCharging = this.jumpCancel || this.held('jump') || this.jumpDown || this.jumpUp
     this.reset()
     this.jumpCancel = wasCharging
   }
