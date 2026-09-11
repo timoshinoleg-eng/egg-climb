@@ -78,11 +78,9 @@ test('real keyboard input traverses the toaster and authoritative Kitchen Finish
   await startScriptedKitchen(page)
   const inputs=kitchenWitnessInputs(true)
   await driveKeyboard(page,inputs.slice(0,1167))
-  await page.clock.runFor(250) // Let the last canonical frame/cues reach the view.
+  await page.clock.runFor(250)
   const evidence=await page.evaluate(()=>window.__transportProbe)
   expect(evidence.inputs).toEqual(inputs.slice(0,1167))
-  // This exact route deliberately flies above the steam AABB; steam has its
-  // own real-input scenario below, not a fabricated activation assertion.
   expect(evidence.steam).toBe(false);expect(evidence.launch).toBe(true);expect(evidence.finish).toBe(1167)
   await expect(page.locator('body')).toHaveAttribute('data-phase','over')
   await expect(page.locator('#endLabel')).toHaveText('KITCHEN ESCAPED')
@@ -125,7 +123,7 @@ test('world navigation keeps separate best scores and tears down the previous wo
     localStorage.setItem('egg-climb-arcade-best-v1','450')
     localStorage.setItem('egg-climb-kitchen-best-v1','230')
   })
-  await page.goto('/')
+  await page.goto('/play/index.html')
   await expect(page.locator('body')).toHaveAttribute('data-phase','ready')
   await expect(page.locator('#bestScore')).toHaveText('00450')
   await expect.poll(()=>page.workers().length).toBe(1)
@@ -140,8 +138,6 @@ test('world navigation keeps separate best scores and tears down the previous wo
   let kitchenClosed=false
   page.workers()[0].once('close',()=>{kitchenClosed=true})
 
-  // A page's mode and best score are painted before its Worker handshake.
-  // Hold the new script to reproduce that interval without arbitrary sleeps.
   let releaseWorker
   const workerGate=new Promise(resolve=>{releaseWorker=resolve})
   await page.route('**/play/sim-worker.js*',async route=>{await workerGate;await route.continue()})
