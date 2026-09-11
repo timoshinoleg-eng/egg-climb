@@ -41,16 +41,24 @@ test('packaged playtest runs under an /egg-climb/ subpath and exports replayable
     await expect(page.locator('#gameStage')).toHaveAttribute('data-level', 'kitchen-escape-v1')
     await expect(page.locator('#onboardingTitle')).toContainText('egg-sized escape')
 
-    await page.goto(`http://127.0.0.1:${port}/egg-climb/debug/index.html?max=1`)
-    await expect(page).toHaveURL(/\/egg-climb\/play\/kitchen\.html\?max=1/)
+    await page.goto(`http://127.0.0.1:${port}/egg-climb/?max=1&feel=2d-hold-assist&scenario=jump-base`)
+    await expect(page).toHaveURL(/\/egg-climb\/play\/kitchen\.html\?max=1$/)
+    await expect(page.locator('#gameStage')).toHaveAttribute('data-level', 'kitchen-escape-v1')
+
+    await page.goto(`http://127.0.0.1:${port}/egg-climb/debug/index.html?max=1&feel=2d-hold-assist&scenario=jump-base`)
+    await expect(page).toHaveURL(/\/egg-climb\/play\/kitchen\.html\?max=1$/)
     await expect(page.locator('#gameStage')).toHaveAttribute('data-level', 'kitchen-escape-v1')
 
     await page.goto(`http://127.0.0.1:${port}/egg-climb/debug/index.html#WebAppData=fake`)
     await expect(page).toHaveURL(/\/egg-climb\/play\/kitchen\.html#WebAppData=fake/)
     await expect(page.locator('#gameStage')).toHaveAttribute('data-level', 'kitchen-escape-v1')
 
-    await page.goto(`http://127.0.0.1:${port}/egg-climb/?max=1&feel=2d-hold-assist&scenario=jump-base`)
-    await expect(page).toHaveURL(/\/egg-climb\/debug\/index\.html\?max=1&feel=2d-hold-assist&scenario=jump-base/)
+    await page.goto(`http://127.0.0.1:${port}/egg-climb/max.html?feel=2d-hold-assist&scenario=jump-base`)
+    await expect(page).toHaveURL(/\/egg-climb\/play\/kitchen\.html\?max=1$/)
+    await expect(page.locator('#gameStage')).toHaveAttribute('data-level', 'kitchen-escape-v1')
+
+    await page.goto(`http://127.0.0.1:${port}/egg-climb/?max=1&lab=1&feel=2d-hold-assist&scenario=jump-base`)
+    await expect(page).toHaveURL(/\/egg-climb\/debug\/index\.html\?max=1&lab=1&feel=2d-hold-assist&scenario=jump-base/)
     await expect(page.locator('#maxToolbar')).toHaveAttribute('data-platform', 'android')
     try { await expect(page.locator('#status')).toContainText('running') } catch (error) { throw new Error(`${error.message}\n${errors.join('\n')}`) }
     const jump = page.getByRole('button', { name: 'JUMP', exact: true }); const box = await jump.boundingBox(); expect(box).toBeTruthy()
