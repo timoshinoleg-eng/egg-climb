@@ -5,7 +5,7 @@ import path from 'node:path'
 import { createDebugServer, isPublicAsset } from '../scripts/serve-debug.mjs'
 
 async function withServer(fn){
-  const server=createDebugServer();await new Promise(resolve=>server.listen(0,'0.0.0',resolve))
+  const server=createDebugServer();await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
   try{await fn(`http://127.0.0.1:${server.address().port}`)}finally{await new Promise(resolve=>server.close(resolve))}
 }
 
