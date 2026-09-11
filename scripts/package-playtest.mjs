@@ -35,8 +35,7 @@ export async function packagePlaytest() {
     await copyFile(join(ROOT, 'play', name), join(OUTPUT, 'play', name))
   }
   for (const module of ['sim', 'host', 'presentation', 'render', 'game']) {
-    await copyDistJavaScript(join(ROOT, 'dist', module), join(OUTPUT, 'dist', module)
-    )
+    await copyDistJavaScript(join(ROOT, 'dist', module), join(OUTPUT, 'dist', module))
   }
 
   await copyFile(join(ROOT, 'node_modules', 'three', 'build', 'three.module.js'), join(OUTPUT, 'vendor', 'three', 'three.module.js'))
