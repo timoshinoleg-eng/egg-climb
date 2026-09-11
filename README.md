@@ -2,41 +2,26 @@
 
 Mobile-first physics climbing game for Web/Mini Apps, with later native packaging.
 
-## Play Cloud Garden
+## Play Kitchen Escape
 
 ```bash
 npm ci
 npm run debug:serve
 ```
 
-Open the server at port 4173. The default route opens **Cloud Garden**, a local
-arcade practice climb. Arrows / A / D roll, Space hops, Escape pauses. Mobile
-buttons support simultaneous pointers. Height and combo bonuses are local-only;
-the optional personal best is stored on this device, not an online leaderboard.
-The help and reduced-motion buttons are in the header. No external art, fonts,
-CDN, accounts or database connection are needed by the arcade.
+Open the server at port 4173. The default route opens **Kitchen Escape**, the current first-world vertical slice: a tiny egg escaping through a giant human-scale kitchen. This mode runs the canonical Kitchen with default physics/feel, real moving cabinet/steam/toaster mechanics and the authoritative Finish latch.
 
-The playable shell uses a Canvas 2D projection of the same worker-owned Rapier
-simulation. The Three.js lab remains at `/debug/index.html`; existing lab/MAX
-query links still redirect there. See [arcade boundaries and compatibility](docs/adr/0005-local-arcade-shell.md).
+A / D move along the counter, W / S change depth, Space hops and Escape pauses. The view button switches between the full kitchen and following the egg. The oblique Canvas view preserves 3D coordinates and inputs without a WebGL requirement. Background decor is non-colliding, and score/best are local to the device.
 
-## Play Kitchen Escape
+See [Kitchen delivery and verification](docs/delivery/kitchen-escape.md) and [ADR 0006](docs/adr/0006-playable-kitchen.md). With the server running, `npm run test:perf:kitchen` measures a real-time full-room mobile-viewport smoke. Its adaptive resolution and real-device limits are recorded, not hidden.
 
-Choose **Kitchen Escape** in the world tabs, open `/play/kitchen.html`, or use
-`/?mode=kitchen`. This mode runs the canonical Kitchen with default physics/feel,
-real moving cabinet/steam/toaster mechanics and the authoritative Finish latch.
-A / D move along the counter, W / S change depth, Space hops and Escape pauses.
-The view button switches between the full kitchen and following the egg.
+## Optional Cloud Garden practice
 
-The oblique Canvas view preserves 3D coordinates and inputs without a WebGL
-requirement. Background decor is non-colliding, and score/best are still local;
-Garden and Kitchen best scores are independent. Both modes retain safe pause,
-restart, storage fallback, mobile controls and reduced-motion behavior.
+Cloud Garden remains available at `/play/index.html` or `/?mode=garden` as a local arcade practice/sandbox. Arrows / A / D roll, Space hops, Escape pauses. Mobile buttons support simultaneous pointers. Height and combo bonuses are local-only; the optional personal best is stored on this device, not an online leaderboard.
 
-See [Kitchen delivery and verification](docs/delivery/kitchen-escape.md) and
-[ADR 0006](docs/adr/0006-playable-kitchen.md). With the server running,
-`npm run test:perf:kitchen` measures a real-time full-room mobile-viewport smoke.
-Its adaptive resolution and real-device limits are recorded, not hidden.
+Cloud Garden uses the same Worker-owned Rapier simulation through the explicit non-competitive `fixtureStaticBoxes` seam. It is not a canonical Foundation/Kitchen/Daily run and does not replace the Kitchen product direction. See [arcade boundaries and compatibility](docs/adr/0005-local-arcade-shell.md).
+
+The Three.js lab remains at `/debug/index.html`; existing lab/MAX query links still redirect there. No external art, fonts, CDN, accounts or database connection are required by either local play surface.
 
 ## Current architecture
 
@@ -58,12 +43,7 @@ npx playwright install --with-deps chromium firefox webkit
 npm run test:browser
 ```
 
-With the debug server running, `npm run test:perf` measures a six-second
-390×844 / DPR 2 mobile-viewport smoke including actual jump effects. It records
-FPS, p95 frame time and render work in ignored `test-results/`. This is not a
-real-device performance certification. If an independently installed Chromium is
-needed, `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chromium` selects it without
-disabling Firefox or WebKit projects. Standard CI uses Playwright-pinned browsers.
+With the debug server running, `npm run test:perf` measures a six-second 390×844 / DPR 2 mobile-viewport smoke including actual jump effects. It records FPS, p95 frame time and render work in ignored `test-results/`. This is not a real-device performance certification. If an independently installed Chromium is needed, `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chromium` selects it without disabling Firefox or WebKit projects. Standard CI uses Playwright-pinned browsers.
 
 Node CI verifies the golden replay on Linux x64, Windows x64 and macOS arm64. Browser CI runs the same golden replay in Chromium, Firefox and WebKit. Property-based tests generate additional canonical input logs and require byte-identical replay fingerprints.
 
@@ -79,6 +59,4 @@ Open `http://127.0.0.1:4173/debug/index.html`. WASD/arrows are sampled by the ma
 
 ## Delivery report
 
-See the [Engineering & Visual Delivery Report](docs/delivery/engineering-visual-report.md)
-for the hardening/arcade changes, measured frame budget, full CI evidence, optional
-MIT/CC0 integrations and safe static deployment settings.
+See the [Engineering & Visual Delivery Report](docs/delivery/engineering-visual-report.md) for the hardening/arcade changes, measured frame budget, full CI evidence, optional MIT/CC0 integrations and safe static deployment settings.
