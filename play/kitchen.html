@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#f5f4ec">
-  <meta name="description" content="One little egg. A whole sky to explore. A playful, physics-powered climb through the Cloud Garden.">
+  <meta name="description" content="A tiny egg escapes through a giant human-scale kitchen in Egg Climb's first playable world.">
   <title>Egg Climb — Kitchen Escape</title>
   <link rel="icon" type="image/svg+xml" href="./egg.svg">
   <link rel="stylesheet" href="./style.css">
@@ -13,7 +13,7 @@
 </head>
 <body data-phase="loading" data-mode="kitchen" class="kitchen-mode">
   <header class="topbar">
-    <a class="wordmark" href="./index.html" aria-label="Egg Climb home"><img src="./egg.svg" alt="" width="34" height="40"><span>egg<span class="wordmark-light">climb</span><span class="logo-dot">.</span></span></a>
+    <a class="wordmark" href="./kitchen.html" aria-label="Egg Climb home"><img src="./egg.svg" alt="" width="34" height="40"><span>egg<span class="wordmark-light">climb</span><span class="logo-dot">.</span></span></a>
     <div class="tagline">A LITTLE BREAK FOR FREEDOM.</div>
     <nav aria-label="Game tools">
       <button class="icon-button" id="motionButton" aria-label="Reduce motion" aria-pressed="false" title="Reduce motion"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 3-8 11h6l-1 7 9-12h-6z"/></svg></button>
@@ -31,13 +31,13 @@
     </aside>
 
     <section class="play-column" aria-label="Kitchen Escape arcade">
-      <nav class="mode-tabs" aria-label="Choose a world"><a href="./index.html"><span>01</span> Cloud Garden</a><a href="./kitchen.html" aria-current="page"><span>02</span> Kitchen Escape <i>NEW</i></a></nav>
+      <nav class="mode-tabs" aria-label="Choose a mode"><a href="./kitchen.html" aria-current="page"><span>01</span> Kitchen Escape <i>MAIN</i></a><a href="./index.html"><span>P</span> Cloud Garden <i>PRACTICE</i></a></nav>
       <div class="stage" id="gameStage" data-tick="0" data-queue="0" data-quality="high">
         <canvas id="gameCanvas" tabindex="0" aria-label="Kitchen Escape. A and D move along the counter, W and S change depth, Space jumps. Escape pauses."></canvas>
-        <div class="stage-top"><div class="world-chip"><span class="world-number">02</span><span>KITCHEN ESCAPE</span></div><div class="stage-tools"><button id="overviewButton" class="stage-pause overview-button" aria-label="View the kitchen" aria-pressed="false" title="Overview / follow egg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5"/></svg></button><button id="pauseButton" class="stage-pause" aria-label="Pause game" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button></div></div>
+        <div class="stage-top"><div class="world-chip"><span class="world-number">01</span><span>KITCHEN ESCAPE</span></div><div class="stage-tools"><button id="overviewButton" class="stage-pause overview-button" aria-label="View the kitchen" aria-pressed="false" title="Overview / follow egg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5"/></svg></button><button id="pauseButton" class="stage-pause" aria-label="Pause game" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button></div></div>
         <div class="combo-chip" id="combo" hidden>GREAT! <span>×1</span></div>
         <div class="start-card" id="onboarding" aria-labelledby="onboardingTitle">
-          <div class="start-copy"><span class="eyebrow">DON’T GET SCRAMBLED</span><h1 id="onboardingTitle">An egg-sized escape.</h1><p>Climb the counter. Catch the steam.<br>Find your way to the open vent.</p></div>
+          <div class="start-copy"><span class="eyebrow">WORLD 01 · KITCHEN ESCAPE</span><h1 id="onboardingTitle">An egg-sized escape.</h1><p>Climb the counter. Catch the steam.<br>Find your way to the open vent.</p></div>
           <button class="primary-button" id="startButton" disabled><span id="startLabel">Setting the table…</span><span aria-hidden="true">↗</span></button>
           <div class="onboarding-keys"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to roll</span><span><kbd>space</kbd> to hop</span></div>
         </div>
@@ -60,7 +60,7 @@
     </aside>
   </main>
 
-  <footer class="page-footer"><span>MADE OF SMALL LEAPS & A LITTLE COURAGE</span><span id="performance" title="Measured rendering telemetry">WORKER PHYSICS · 60 Hz</span></footer>
+  <footer class="page-footer"><span>WORLD 01 · KITCHEN ESCAPE</span><span id="performance" title="Measured rendering telemetry">WORKER PHYSICS · 60 Hz</span></footer>
 
   <dialog class="game-dialog" id="resultDialog" aria-labelledby="resultTitle">
     <div class="result-egg" aria-hidden="true">✧</div><span class="eyebrow" id="endLabel">GAME OVER</span><h2 id="resultTitle">A cracking good run.</h2><p id="resultCopy">Every fall is a fresh start.</p><div class="record-badge" id="recordBadge" hidden>✦ NEW PERSONAL BEST ✦</div>
@@ -70,7 +70,7 @@
   <dialog class="game-dialog" id="pauseDialog" aria-labelledby="pauseTitle"><span class="eyebrow">TAKE A BREATHER</span><h2 id="pauseTitle">The sky can wait.</h2><p>Your climb is right where you left it.</p><button class="primary-button" id="resumeButton">Keep climbing <span aria-hidden="true">↗</span></button><button class="text-button" id="pauseRestartButton">Start a fresh climb</button></dialog>
   <dialog class="game-dialog help-dialog" id="helpDialog" aria-labelledby="helpTitle"><span class="eyebrow">A FIELD GUIDE FOR LITTLE EGGS</span><h2 id="helpTitle">A tiny guide to a big kitchen.</h2><p><kbd>A</kbd> <kbd>D</kbd> or <kbd>←</kbd> <kbd>→</kbd> move along the counter.<br><kbd>W</kbd> <kbd>S</kbd> or <kbd>↑</kbd> <kbd>↓</kbd> steer across its depth.<br><kbd>Space</kbd> hops. <kbd>Esc</kbd> pauses.</p><p>The pointed end gives a stronger hop. Steam lifts you while you’re inside it. The toaster pops on entry: step out before trying again. Time your jump onto the moving cabinet, then reach the glowing vent.</p><p class="help-small">Kitchen physics and Finish come from the canonical simulation. Your score and personal best are local to this device, not an online leaderboard. The view button shows the whole route.</p><button class="primary-button" id="closeHelpButton">Got it. Let's escape. <span aria-hidden="true">↗</span></button></dialog>
   <section id="errorPanel" class="error-panel" role="alert" hidden><span class="eyebrow">A LITTLE HICCUP</span><h2>The kitchen needs a moment.</h2><p id="errorMessage">We couldn't start the game. Please reload to try again.</p><button class="primary-button" id="reloadButton">Reload the kitchen ↻</button><a href="../debug/index.html">Open the physics lab</a></section>
-  <noscript><div class="error-panel">This little garden needs JavaScript to grow. Enable it to play Egg Climb.</div></noscript>
+  <noscript><div class="error-panel">Kitchen Escape needs JavaScript. Enable it to play Egg Climb.</div></noscript>
   <script type="module" src="./main.js"></script>
 </body>
 </html>
