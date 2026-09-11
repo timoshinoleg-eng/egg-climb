@@ -76,7 +76,6 @@ export class KitchenReadabilityView extends KitchenView {
     c.font = `700 ${fontSize}px 'Trebuchet MS', sans-serif`
     c.textAlign = 'center'
     c.textBaseline = 'middle'
-    c.letterSpacing = '.08em'
     const width = Math.min(this.width - 36, c.measureText(label).width + 24)
     c.fillStyle = '#fff8e7dc'
     c.strokeStyle = '#b9c2a6cc'
