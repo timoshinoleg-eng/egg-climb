@@ -6,6 +6,7 @@ export type InputAction = 'left' | 'right' | 'forward' | 'backward' | 'jump'
 /** Multiple pointers/keyboard keys may own the same action independently. */
 export class InputState {
   private readonly owners = new Map<string, InputAction>()
+  private readonly oneShotOwners = new Set<string>()
   private jumpDown = false
   private jumpUp = false
   private jumpCancel = false
@@ -25,10 +26,23 @@ export class InputState {
     const action = this.owners.get(owner)
     if (action === undefined) return
     this.owners.delete(owner)
+    this.oneShotOwners.delete(owner)
     if (action === 'jump' && !this.held('jump')) {
       if (cancelled) { this.jumpCancel = true; this.jumpUp = false }
       else if (!this.jumpCancel) this.jumpUp = true
     }
+  }
+
+  /** One assistive activation contributes exactly one sampled movement step. */
+  pulse(action: InputAction, owner: string): void {
+    if (action === 'jump') {
+      this.press(action, owner)
+      this.release(owner)
+      return
+    }
+    if (this.owners.has(owner)) return
+    this.owners.set(owner, action)
+    this.oneShotOwners.add(owner)
   }
 
   /** Focus loss is idempotent: repeated blur/visibility events must preserve a queued cancel edge. */
@@ -40,6 +54,7 @@ export class InputState {
 
   reset(): void {
     this.owners.clear()
+    this.oneShotOwners.clear()
     this.jumpDown = false
     this.jumpUp = false
     this.jumpCancel = false
@@ -54,6 +69,8 @@ export class InputState {
       jumpUp: this.jumpUp && !this.jumpCancel,
       jumpCancel: this.jumpCancel,
     }
+    for (const owner of this.oneShotOwners) this.owners.delete(owner)
+    this.oneShotOwners.clear()
     this.jumpDown = false
     this.jumpUp = false
     this.jumpCancel = false

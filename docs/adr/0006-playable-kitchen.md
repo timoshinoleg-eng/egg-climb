@@ -52,9 +52,12 @@ Mode-specific views are loaded lazily. A disposed page cannot create a Worker af
 an asynchronous view import resolves. Navigation tears down the old Worker/rAF;
 restart clears cues, completion, queues and controls through the existing epoch fence.
 
-The default route remains Garden. Kitchen is available from the world tabs,
-`/play/kitchen.html`, or `/?mode=kitchen`. Static packaging preserves the project
-subpath and never ships test witnesses, keyboard drivers or transport observers.
+The default route is Kitchen Escape. Garden remains explicit practice at
+`/play/index.html` or `/?mode=garden`. Production MAX uses the canonical packaged
+`max.html` entry, which routes to Kitchen and strips stale Lab selectors; MAX Lab
+access requires explicit `lab=1`. The local preview mirrors the packaged routing.
+Static packaging preserves the project subpath and never ships test witnesses,
+keyboard drivers or transport observers.
 
 ## Verification
 

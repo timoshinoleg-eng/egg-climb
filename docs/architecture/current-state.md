@@ -280,6 +280,12 @@ must never be assumed available outside High. Context-loss and cleanup behavior
 are performance and correctness requirements, not optional polish. Exact
 budgets and effect behavior belong in the [Visual Preset spec](../specs/2026-09-06-visual-preset-v1.md), rather than this overview.
 
+The current constrained MAX/coarse-touch Kitchen profile is presentation-only: it
+forces Low/DPR 1, suppresses decorative motion/particles and uses render stride 2.
+The client reports browser rAF cadence separately from actual presentation FPS so a
+60 Hz callback stream cannot be mislabeled as 60 rendered FPS. This profile does not
+change Worker physics, input sampling, replay identity or authoritative Finish.
+
 ## 14. Testing and CI invariants
 
 CI typechecks and runs Node tests—including deterministic core, replay,

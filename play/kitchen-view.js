@@ -242,7 +242,7 @@ export class KitchenView {
   }
 
   render(dt,previous,current,alpha,phase){
-    if(this.disposed)return
+    if(this.disposed)return false
     const snapshot=current??this.preview,prev=previous??snapshot,t=phase==='playing'?alpha:1
     const pose=interpolateSnapshots(prev,snapshot,t),step=Math.min(.1,Math.max(0,Number.isFinite(dt)?dt:0))
     this.time+=step;this.launchFlash=Math.max(0,this.launchFlash-step)
@@ -275,6 +275,7 @@ export class KitchenView {
     this.tag('STEAM · LIFT',steam.center[0],steam.center[1]+2.95,steam.center[2],this.scene.steamActive)
     this.tag('MOVING CABINET',lift.center[0],this.scene.cabinetY+1.3,lift.center[2],false)
     c.restore()
+    return true
   }
   dispose(){
     if(this.disposed)return

@@ -10,7 +10,23 @@ const mime = new Map([
   ['.json', 'application/json; charset=utf-8'], ['.wasm', 'application/wasm'],
   ['.svg', 'image/svg+xml'], ['.png', 'image/png'], ['.webp', 'image/webp'],
 ])
+const LAB_KEYS = ['feel', 'physics', 'scenario', 'visual', 'order']
 
+/** Mirror packaged routing so local QA cannot accidentally exercise a stale MAX lab. */
+export function previewRedirect(url) {
+  const params = new URLSearchParams(url.searchParams)
+  const maxLaunch = params.get('max') === '1' || params.has('WebAppStartParam')
+  const allowMaxLab = params.get('lab') === '1'
+  const lab = LAB_KEYS.some(key => params.has(key))
+  const garden = params.get('mode') === 'garden'
+  if (maxLaunch && !allowMaxLab) {
+    for (const key of [...LAB_KEYS, 'lab', 'mode']) params.delete(key)
+    const search = params.toString()
+    return `/play/kitchen.html${search ? `?${search}` : ''}`
+  }
+  const page = lab ? '/debug/index.html' : garden ? '/play/index.html' : '/play/kitchen.html'
+  return `${page}${url.search}`
+}
 /** A public preview is NOT a repository file browser. Fail closed, including symlinks. */
 export function isPublicAsset(relativePath) {
   const parts = relativePath.replaceAll('\\', '/').split('/')
@@ -32,10 +48,7 @@ export function createDebugServer() {
     try {
       const url = new URL(request.url ?? '/', 'http://localhost')
       if (url.pathname === '/') {
-        const lab = ['max', 'feel', 'physics', 'scenario', 'visual', 'order'].some(key => url.searchParams.has(key))
-        const garden = url.searchParams.get('mode') === 'garden'
-        const page = lab ? '/debug/index.html' : garden ? '/play/index.html' : '/play/kitchen.html'
-        response.writeHead(302, { Location: `${page}${url.search}` }).end()
+        response.writeHead(302, { Location: previewRedirect(url) }).end()
         return
       }
       const pathname = decodeURIComponent(url.pathname)

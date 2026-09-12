@@ -51,9 +51,7 @@ export function bindGameInput(input: InputState, options: BrowserInputOptions): 
     button.addEventListener('click', event => {
       // Keyboard / assistive activation has no pointerdown/up pair.
       if (event.detail === 0 && options.active()) {
-        const owner = `activation:${action}`
-        input.press(action, owner)
-        input.release(owner)
+        input.pulse(action, `activation:${action}`)
       }
     }, { signal })
     button.addEventListener('contextmenu', event => event.preventDefault(), { signal })
