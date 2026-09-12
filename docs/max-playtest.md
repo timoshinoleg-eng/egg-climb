@@ -2,12 +2,18 @@
 
 `npm run package:playtest` creates the isolated static site in `build/playtest`. Only runtime JS, the baked renderer/worker, Three and pinned deterministic Rapier with license notices are published. Sources, tests, maps and repository files are excluded. All imports work beneath a URL prefix.
 
-GitHub Pages publishes after successful main CI. The MAX launch URL is `https://timoshinoleg-eng.github.io/egg-climb/?max=1&feel=3d-tap&scenario=jump-base&visual=plain&order=0`.
+GitHub Pages publishes after successful `main` CI. The canonical MAX Mini App entry is:
 
-In MAX Partner Cabinet, create/select the dedicated Egg Climb bot, open Advanced settings, set this HTTPS Mini App URL and the Play button. Keep other game bots unchanged. The resulting `https://max.ru/<actual-bot-name>?startapp` link opens the configured app. The bot's actual assigned name must come from the cabinet, not be invented.
+`https://timoshinoleg-eng.github.io/egg-climb/max.html`
 
-The opt-in `max=1` shell hides diagnostics behind buttons and keeps touch controls visible. Export opens a selectable/copyable local JSON record rather than depending on WebView Blob downloads. Reproduce saved records with `npm run replay:playtest -- record.json`. No user IDs, initData, access tokens or account data are collected. No bot polling or messaging is needed for launching the Mini App.
+`max.html` removes stale Lab query parameters, adds `max=1` and routes to `play/kitchen.html`. The packaged root behaves the same for a normal MAX launch. The local debug server mirrors this routing. Physics/Game Feel Lab is available in MAX only by an explicit `lab=1` diagnostic URL; old `feel`, `physics`, `scenario`, `visual` or `order` parameters alone must not reopen the Lab.
 
-The official MAX Bridge is loaded asynchronously only in MAX mode from https://st.max.ru/js/max-web-app.js; the game works if it fails. This is the host platform bridge, not a simulation dependency. It is not vendored or added to npm. Main-thread UI reads only the platform label; authoritative physics has no bridge/DOM dependency. See https://dev.max.ru/docs/webapps/bridge and https://dev.max.ru/docs/webapps/introduction.
+In MAX Partner Cabinet, create/select the dedicated Egg Climb bot, open Advanced settings, set the HTTPS Mini App URL above and the Play button. Keep other game bots unchanged. The resulting `https://max.ru/<actual-bot-name>?startapp` link opens the configured app. The bot's actual assigned name must come from the cabinet, not be invented.
 
-Real-device checklist: Android and iOS MAX launch, first frame, sustained steering/jump, hold-release, cancellation on background, portrait/landscape and keyboard with notes, reset, switching feel, saving ratings and copying export. Record actual MAX/device versions and subjective issues. Desktop Chromium mobile emulation and Playwright WebKit are not real MAX device results.
+Kitchen currently runs as a local gameplay playtest inside MAX. Its canonical physics remains fixed at 60 Hz in a Worker. On constrained/coarse-touch launches the presentation selects `KitchenMaxView`: LOW quality, DPR 1, reduced decorative motion and render stride 2. The renderer may therefore present about 30 visual frames per second while browser rAF cadence remains near 60 Hz. Telemetry reports those two rates separately; do not report rAF Hz as presentation FPS.
+
+The constrained profile locks reduced-motion presentation for performance. Physics, input sampling, replay identity and authoritative Finish are not reduced. Current score/personal best remain device-local.
+
+The old Lab shell still supports local JSON export for diagnostics. Reproduce saved Lab records with `npm run replay:playtest -- record.json`. No production MAX user identity, initData authentication, online run submission or leaderboard is implemented by the playable Kitchen client yet; the strict server-side initData validator is contract foundation only.
+
+Real-device checklist: Android/iOS MAX launch, Kitchen + Practice first frame, sustained steering/jump, input latency, background/resume, portrait/landscape, restart, camera readability and sustained performance. Record actual device/OS/MAX versions. Desktop Chromium mobile emulation and Playwright WebKit are portability evidence, not physical MAX certification.

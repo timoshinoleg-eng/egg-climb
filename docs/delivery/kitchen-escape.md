@@ -128,3 +128,9 @@ Build и **164 unit-теста** повторно прошли после вос
 
 PR: https://github.com/timoshinoleg-eng/egg-climb/pull/13.
 Слияние PR и production deployment остаются отдельным решением владельца.
+
+## Актуальное дополнение: MAX performance profile
+
+После реального теста в MAX стало ясно, что исходный desktop/mobile smoke не гарантировал приемлемую скорость внутри MAX WebView. Production MAX entry теперь `max.html`, а constrained/coarse-touch Kitchen использует отдельный presentation profile: LOW, DPR 1, reduced decorative motion, без тяжёлых текстур/частиц и с render stride 2. Авторитетная 60 Hz Worker-симуляция при этом не меняется.
+
+Телеметрия различает browser rAF cadence и фактически отрисованные presentation frames. При stride 2 около 60 Hz rAF и около 30 presentation FPS являются ожидаемой парой, а не «60 FPS Kitchen». Реальный Android/iOS MAX playtest остаётся обязательным acceptance gate.

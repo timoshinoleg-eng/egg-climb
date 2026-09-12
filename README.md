@@ -21,7 +21,7 @@ Cloud Garden remains available at `/play/index.html` or `/?mode=garden` as a loc
 
 Cloud Garden uses the same Worker-owned Rapier simulation through the explicit non-competitive `fixtureStaticBoxes` seam. It is not a canonical Foundation/Kitchen/Daily run and does not replace the Kitchen product direction. See [arcade boundaries and compatibility](docs/adr/0005-local-arcade-shell.md).
 
-The Three.js lab remains at `/debug/index.html`; existing lab/MAX query links still redirect there. No external art, fonts, CDN, accounts or database connection are required by either local play surface.
+The Three.js lab remains at `/debug/index.html`. Production MAX launches use the canonical packaged `max.html` entry and route to Kitchen Escape; the laboratory is available in MAX only with explicit `lab=1`. The local debug server mirrors those routing semantics so QA cannot silently exercise the old MAX Lab path. No external art, fonts, CDN, accounts or database connection are required by either local play surface.
 
 ## Current architecture
 

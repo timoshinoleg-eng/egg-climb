@@ -162,3 +162,24 @@ single new Worker with the correct URL. A gate on the returning Garden script
 explicitly checks the loading/disabled-start interval before allowing initialization.
 No assertion or browser project was removed. The strengthened case passed three
 consecutive Chromium runs locally; the full current matrix is tracked in PR #13.
+
+## 2026-09-12 MAX/runtime hardening follow-up
+
+This follow-up starts from deployed `main` `ea91152a9f30607ddab898f286fd0060ae7e61ca` and does not change authoritative simulation, Kitchen level/physics, replay identity or golden fingerprints.
+
+Changes are limited to client/runtime hardening left after PR #13 and the later MAX routing/performance fixes:
+
+- assistive/keyboard DOM activation of directional buttons now survives exactly one simulation sample instead of being pressed and released before sampling;
+- local preview MAX routing matches the packaged production route; ordinary MAX launches go to Kitchen, while MAX Lab access requires explicit `lab=1`;
+- constrained MAX/coarse-touch Kitchen keeps LOW/DPR 1, reduced decoration and render stride 2, and the motion control is locked to reflect that actual profile;
+- performance telemetry now separates actual presentation FPS from browser rAF cadence and exports render stride/profile plus p95 measurements;
+- the performance smoke consumes the same presentation/rAF telemetry instead of treating callback cadence as rendered FPS.
+
+Local verification after the final runtime changes:
+
+- `npm run typecheck` — PASS;
+- `npm test` — **170 PASS, 0 failed, 0 skipped**;
+- targeted Chromium Kitchen + packaged-MAX browser suite — **6 PASS**;
+- authoritative determinism policy — PASS.
+
+Full Linux/Windows/macOS and Chromium/Firefox/WebKit evidence must come from the exact-head GitHub Actions run for the follow-up PR before merge. Real MAX device performance remains a human/device acceptance gate, not something desktop CI can certify.

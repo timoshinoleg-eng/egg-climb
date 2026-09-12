@@ -196,7 +196,7 @@ export class GardenView {
   }
 
   render(dt,previous,current,alpha,phase) {
-    if(this.disposed)return
+    if(this.disposed)return false
     const snapshot=current??this.preview
     const pose=interpolateSnapshots(previous??snapshot,snapshot,phase==='playing'?alpha:1)
     const step=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,0.1))
@@ -226,6 +226,7 @@ export class GardenView {
       c.fillStyle='#fffeec99';c.beginPath();c.arc(x,y,i%3===0?1.7:1,0,TAU);c.fill()
     }
     c.restore()
+    return true
   }
   dispose() {
     if(this.disposed)return

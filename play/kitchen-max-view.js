@@ -29,6 +29,7 @@ export class KitchenMaxView extends KitchenReadabilityView {
     super.setReducedMotion(true)
     this.canvas.dataset.maxProfile = 'performance-v2'
     this.canvas.dataset.renderStride = '2'
+    this.canvas.dataset.motionLocked = 'true'
 
     // MAX never uses the textured face path, so release those backing canvases
     // after construction instead of retaining them for the whole run.
@@ -62,19 +63,18 @@ export class KitchenMaxView extends KitchenReadabilityView {
   }
 
   render(dt, previous, current, alpha, phase) {
-    if (this.disposed) return
+    if (this.disposed) return false
     const step = Math.min(.1, Math.max(0, Number.isFinite(dt) ? dt : 0))
     if (phase === 'playing') {
       this.maxRenderDebt = Math.min(.1, this.maxRenderDebt + step)
       this.maxRenderParity = (this.maxRenderParity + 1) & 1
-      if (this.maxRenderParity) return
+      if (this.maxRenderParity) return false
       const elapsed = this.maxRenderDebt
       this.maxRenderDebt = 0
-      super.render(elapsed, previous, current, alpha, phase)
-      return
+      return super.render(elapsed, previous, current, alpha, phase)
     }
     this.maxRenderDebt = 0
-    super.render(step, previous, current, alpha, phase)
+    return super.render(step, previous, current, alpha, phase)
   }
 
   drawFace(face) {

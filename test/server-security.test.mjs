@@ -23,6 +23,9 @@ test('runtime resources accept preview hosts, preserve redirect queries and appl
     const garden=await fetch(base+'/?mode=garden',{redirect:'manual'});assert.equal(garden.headers.get('location'),'/play/index.html?mode=garden')
     const lab=await fetch(base+'/?feel=2d-tap',{redirect:'manual'});assert.equal(lab.headers.get('location'),'/debug/index.html?feel=2d-tap')
     const kitchen=await fetch(base+'/?mode=kitchen',{redirect:'manual'});assert.equal(kitchen.headers.get('location'),'/play/kitchen.html?mode=kitchen')
+    const max=await fetch(base+'/?max=1&feel=2d-hold-assist&scenario=jump-base&mode=garden',{redirect:'manual'});assert.equal(max.headers.get('location'),'/play/kitchen.html?max=1')
+    const maxLab=await fetch(base+'/?max=1&lab=1&feel=2d-hold-assist&scenario=jump-base',{redirect:'manual'});assert.equal(maxLab.headers.get('location'),'/debug/index.html?max=1&lab=1&feel=2d-hold-assist&scenario=jump-base')
+    const startParam=await fetch(base+'/?WebAppStartParam=invite&scenario=jump-base',{redirect:'manual'});assert.equal(startParam.headers.get('location'),'/play/kitchen.html?WebAppStartParam=invite')
     for(const route of ['/play/index.html','/play/kitchen.html','/play/main.js','/play/egg.svg','/debug/index.html','/dist/game/arcade-run.js']){
       const response=await fetch(base+route,{headers:{Host:'4173-test.e2b.app',Origin:'https://4173-test.e2b.app'}})
       assert.equal(response.status,200,route);assert.equal(response.headers.get('x-content-type-options'),'nosniff');assert.equal(response.headers.get('x-frame-options'),null);await response.arrayBuffer()

@@ -11,13 +11,13 @@ const $ = id => document.getElementById(id)
 const canvas=$('gameCanvas'),stage=$('gameStage')
 const ui={height:$('height'),score:$('score'),best:$('bestScore'),status:$('gameStatus'),start:$('startButton'),startLabel:$('startLabel'),onboarding:$('onboarding'),pause:$('pauseButton'),restart:$('restartButton'),combo:$('combo'),performance:$('performance')}
 const resultDialog=$('resultDialog'),pauseDialog=$('pauseDialog'),helpDialog=$('helpDialog')
-const storage=new SafeStorage(),input=new InputState(),meter=new FrameMeter()
+const storage=new SafeStorage(),input=new InputState(),cadenceMeter=new FrameMeter(),presentationMeter=new FrameMeter()
 const lifetime=new AbortController(),signal=lifetime.signal
 const motionQuery=window.matchMedia('(prefers-reduced-motion: reduce)')
 let reducedMotion=motionQuery.matches||storage.read('egg-climb-reduced-motion',false,value=>typeof value==='boolean')
 let best=storage.read(mode.bestKey,0,isBestScore)
 let game=null,host=null,view=null,disposeInput=()=>{}
-let disposed=false,rafId=0,lastTime=0,hudTime=0,perfTime=0,settleTime=0,slowWindows=0,fastWindows=0
+let disposed=false,rafId=0,lastTime=0,lastPresentedTime=0,hudTime=0,perfTime=0,settleTime=0,slowWindows=0,fastWindows=0
 let helpActive=false,resumeAfterHelp=false
 const text=(element,value)=>{if(element.textContent!==value)element.textContent=value}
 const listen=(element,type,fn)=>element.addEventListener(type,fn,{signal})
@@ -37,6 +37,7 @@ function updateHud(){
   stage.dataset.level=game?.current?.identity.levelId??mode.level.id
   stage.dataset.levelHash=game?.current?.identity.levelHash??mode.level.hash
   stage.dataset.particles=String(view?.particles.activeCount??0);stage.dataset.quality=view?.quality??'high';stage.dataset.dpr=String(view?.dpr??1)
+  stage.dataset.profile=canvas.dataset.maxProfile??'default';stage.dataset.renderStride=canvas.dataset.renderStride??'1'
   for(const mark of document.querySelectorAll('[data-milestone]'))mark.classList.toggle('reached',score.heightMm>=Number(mark.dataset.milestone)*1000)
   for(const button of document.querySelectorAll('[data-game-action]'))button.classList.toggle('is-held',input.held(button.dataset.gameAction))
   if(mode.id==='kitchen'){
@@ -59,9 +60,12 @@ function updateHud(){
   }
 }
 function setMotion(value){
-  reducedMotion=value;document.body.classList.toggle('reduced-motion',value)
-  $('motionButton').setAttribute('aria-pressed',String(value));$('motionButton').setAttribute('aria-label',value?'Enable full motion':'Reduce motion')
-  view?.setReducedMotion(value);storage.write('egg-climb-reduced-motion',value)
+  const locked=canvas.dataset.motionLocked==='true',effective=locked?true:Boolean(value),button=$('motionButton')
+  reducedMotion=effective;document.body.classList.toggle('reduced-motion',effective)
+  button.disabled=locked;button.setAttribute('aria-pressed',String(effective))
+  button.setAttribute('aria-label',locked?'Reduced motion locked for performance':effective?'Enable full motion':'Reduce motion')
+  button.title=locked?'Reduced motion is fixed in the constrained performance profile':effective?'Enable full motion':'Reduce motion'
+  view?.setReducedMotion(effective);if(!locked)storage.write('egg-climb-reduced-motion',effective)
 }
 function showError(message){
   stopLoop();input.reset();ui.onboarding.hidden=true;ui.pause.disabled=true;ui.restart.disabled=true
@@ -74,10 +78,10 @@ function onPhase(phase){
   ui.pause.disabled=phase!=='playing';ui.restart.disabled=phase==='loading'||phase==='resetting'||phase==='error'
   ui.onboarding.hidden=phase!=='ready'&&phase!=='loading'
   if(phase==='ready'){
-    input.reset();view?.reset(game?.current);meter.reset();closeDialogs();helpActive=false
+    input.reset();view?.reset(game?.current);cadenceMeter.reset();presentationMeter.reset();lastPresentedTime=0;closeDialogs();helpActive=false
     ui.start.disabled=false;text(ui.startLabel,mode.startLabel);text(ui.status,'READY WHEN YOU ARE');settleTime=0;startLoop()
   }else if(phase==='playing'){
-    closeDialogs();text(ui.status,mode.running);meter.reset();hudTime=0;perfTime=0;lastTime=performance.now();focusCanvas();startLoop()
+    closeDialogs();text(ui.status,mode.running);cadenceMeter.reset();presentationMeter.reset();lastPresentedTime=0;hudTime=0;perfTime=0;lastTime=performance.now();focusCanvas();startLoop()
   }else if(phase==='paused'){
     input.cancel();stopLoop();view?.render(0,game?.current,game?.current,1,'paused');text(ui.status,'TAKE A BREATHER')
     if(!helpActive&&!pauseDialog.open)pauseDialog.showModal()
@@ -111,21 +115,32 @@ function frame(now){
   const workStart=performance.now(),dt=lastTime?(now-lastTime)/1000:0
   lastTime=now
   game?.tick(dt,()=>input.sample(mode.planar))
-  view.render(dt,game?.previous,game?.current,game?.alpha??1,game?.phase??'loading')
+  const presented=view.render(dt,game?.previous,game?.current,game?.alpha??1,game?.phase??'loading')!==false
   hudTime+=Math.min(dt,0.1);perfTime+=dt
   if(hudTime>=0.1){hudTime=0;updateHud()}
+  const workMs=performance.now()-workStart
+  if(dt>0){
+    cadenceMeter.record(dt*1000,workMs)
+    if(presented){
+      if(lastPresentedTime) presentationMeter.record(now-lastPresentedTime,workMs)
+      lastPresentedTime=now
+    }
+  }
   if(perfTime>=1){
     perfTime=0
-    const report=meter.summary()
-    text(ui.performance,`${report.fps.toFixed(0)} FPS · ${view.quality.toUpperCase()} · LOCAL`)
-    stage.dataset.fps=report.fps.toFixed(2);stage.dataset.frameP95=report.p95Ms.toFixed(2);stage.dataset.workP95=report.workP95Ms.toFixed(2)
-    if(report.frames>=45){
-      if(report.fps<57){slowWindows++;fastWindows=0}else if(report.fps>=59&&report.p95Ms<19){fastWindows++;slowWindows=0}else{slowWindows=0;fastWindows=0}
+    const cadence=cadenceMeter.summary(),presentation=presentationMeter.summary()
+    const fps=presentation.frames?presentation.fps:0
+    const showCadence=cadence.frames>0&&Math.abs(cadence.fps-fps)>=2
+    const profile=canvas.dataset.maxProfile?'MAX':'LOCAL'
+    text(ui.performance,`${fps.toFixed(0)} FPS${showCadence?` · ${cadence.fps.toFixed(0)} Hz`:''} · ${view.quality.toUpperCase()} · ${profile}`)
+    stage.dataset.fps=fps.toFixed(2);stage.dataset.rafFps=cadence.fps.toFixed(2)
+    stage.dataset.frameP95=presentation.p95Ms.toFixed(2);stage.dataset.rafP95=cadence.p95Ms.toFixed(2);stage.dataset.workP95=presentation.workP95Ms.toFixed(2)
+    if(!canvas.dataset.maxProfile&&cadence.frames>=45){
+      if(cadence.fps<57){slowWindows++;fastWindows=0}else if(cadence.fps>=59&&cadence.p95Ms<19){fastWindows++;slowWindows=0}else{slowWindows=0;fastWindows=0}
       if(slowWindows>=2){view.setQuality(view.quality==='high'?'medium':'low');slowWindows=0}
       if(fastWindows>=8){view.setQuality(view.quality==='low'?'medium':'high');fastWindows=0}
     }
   }
-  if(dt>0)meter.record(dt*1000,performance.now()-workStart)
   if(game?.phase==='over'){settleTime-=Math.min(dt,0.1);if(settleTime<=0){updateHud();return}}
   if(game?.phase==='error'||game?.phase==='disposed'||game?.phase==='paused')return
   rafId=requestAnimationFrame(frame)

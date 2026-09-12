@@ -62,9 +62,11 @@ export class KitchenReadabilityView extends KitchenView {
     this.routeCamera.regionId = region.id
     this.routeCue = cue
 
-    super.render(dt, previous, current, alpha, phase)
+    const rendered = super.render(dt, previous, current, alpha, phase)
+    if (!rendered) return false
     if (phase === 'playing' && !this.overview) this.drawRouteCue()
     this.updatePresentationProbe()
+    return true
   }
 
   drawRouteCue() {

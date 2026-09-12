@@ -26,6 +26,20 @@ test('short press retains both edges and keyboard repeat cannot inject jumps', (
   assert.deepEqual(input.sample(), { ...NEUTRAL_INPUT, jumpCancel: false })
 })
 
+test('assistive pulses survive exactly one simulation sample', () => {
+  const input = new InputState()
+  input.pulse('right', 'activation:right')
+  input.pulse('forward', 'activation:forward')
+  let sample = input.sample(false)
+  assert.equal(sample.moveX, 1); assert.equal(sample.moveZ, -1)
+  sample = input.sample(false)
+  assert.equal(sample.moveX, 0); assert.equal(sample.moveZ, 0)
+  input.pulse('jump', 'activation:jump')
+  sample = input.sample(false)
+  assert.equal(sample.jumpDown, true); assert.equal(sample.jumpUp, true)
+  assert.deepEqual(input.sample(false), { ...NEUTRAL_INPUT, jumpCancel: false })
+})
+
 test('focus loss cancels queued release and restart removes every input edge', () => {
   const input = new InputState()
   input.press('right', 'move'); input.press('jump', 'jump'); input.release('jump'); input.cancel()
